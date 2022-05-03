@@ -10,6 +10,7 @@ Info Command
 
 #include "command/archive/common.h"
 #include "command/info/info.h"
+#include "common/crypto/common.h"
 #include "common/debug.h"
 #include "common/io/fdWrite.h"
 #include "common/lock.h"
@@ -17,7 +18,6 @@ Info Command
 #include "common/memContext.h"
 #include "common/type/json.h"
 #include "config/config.h"
-#include "common/crypto/common.h"
 #include "info/info.h"
 #include "info/infoArchive.h"
 #include "info/infoBackup.h"
@@ -71,6 +71,7 @@ VARIANT_STRDEF_STATIC(STATUS_KEY_CODE_VAR,                          "code");
 VARIANT_STRDEF_STATIC(STATUS_KEY_LOCK_VAR,                          "lock");
 VARIANT_STRDEF_STATIC(STATUS_KEY_LOCK_BACKUP_VAR,                   "backup");
 VARIANT_STRDEF_STATIC(STATUS_KEY_LOCK_BACKUP_HELD_VAR,              "held");
+VARIANT_STRDEF_STATIC(STATUS_KEY_LOCK_BACKUP_PERCENT_COMPLETE_VAR,  "pct-cplt");
 VARIANT_STRDEF_STATIC(STATUS_KEY_MESSAGE_VAR,                       "message");
 
 #define INFO_STANZA_STATUS_OK                                       "ok"
@@ -129,6 +130,7 @@ typedef struct InfoStanzaRepo
     unsigned int currentPgVersion;                                  // Current postgres version for the stanza
     bool backupLockChecked;                                         // Has the check for a backup lock already been performed?
     bool backupLockHeld;                                            // Is backup lock held on the system where info command is run?
+    const Variant *percentComplete;                                 // Percentage of backup complete * 100 (when not NULL)
     InfoRepoData *repoList;                                         // List of configured repositories
 } InfoStanzaRepo;
 
@@ -175,18 +177,19 @@ infoStanzaErrorAdd(InfoRepoData *repoList, const ErrorType *type, const String *
 Set the overall error status code and message for the stanza to the code and message passed
 ***********************************************************************************************************************************/
 static void
-stanzaStatus(const int code, bool backupLockHeld, Variant *stanzaInfo)
+stanzaStatus(const int code, const InfoStanzaRepo *const stanzaData, Variant *stanzaInfo)
 {
     FUNCTION_TEST_BEGIN();
         FUNCTION_TEST_PARAM(INT, code);
-        FUNCTION_TEST_PARAM(BOOL, backupLockHeld);
+        FUNCTION_TEST_PARAM(INFO_STANZA_REPO, stanzaData);
         FUNCTION_TEST_PARAM(VARIANT, stanzaInfo);
     FUNCTION_TEST_END();
 
     ASSERT((code >= 0 && code <= 6) || code == 99);
+    ASSERT(stanzaData != NULL);
     ASSERT(stanzaInfo != NULL);
 
-    KeyValue *statusKv = kvPutKv(varKv(stanzaInfo), STANZA_KEY_STATUS_VAR);
+    KeyValue *const statusKv = kvPutKv(varKv(stanzaInfo), STANZA_KEY_STATUS_VAR);
 
     kvPut(statusKv, STATUS_KEY_CODE_VAR, VARINT(code));
 
@@ -226,9 +229,12 @@ stanzaStatus(const int code, bool backupLockHeld, Variant *stanzaInfo)
     }
 
     // Construct a specific lock part
-    KeyValue *lockKv = kvPutKv(statusKv, STATUS_KEY_LOCK_VAR);
-    KeyValue *backupLockKv = kvPutKv(lockKv, STATUS_KEY_LOCK_BACKUP_VAR);
-    kvPut(backupLockKv, STATUS_KEY_LOCK_BACKUP_HELD_VAR, VARBOOL(backupLockHeld));
+    KeyValue *const lockKv = kvPutKv(statusKv, STATUS_KEY_LOCK_VAR);
+    KeyValue *const backupLockKv = kvPutKv(lockKv, STATUS_KEY_LOCK_BACKUP_VAR);
+    kvPut(backupLockKv, STATUS_KEY_LOCK_BACKUP_HELD_VAR, VARBOOL(stanzaData->backupLockHeld));
+
+    if (stanzaData->percentComplete != NULL && cfgOptionStrId(cfgOptOutput) != CFGOPTVAL_OUTPUT_JSON)
+        kvPut(backupLockKv, STATUS_KEY_LOCK_BACKUP_PERCENT_COMPLETE_VAR, stanzaData->percentComplete);
 
     FUNCTION_TEST_RETURN_VOID();
 }
@@ -636,7 +642,7 @@ backupList(
 Set the stanza data for each stanza found in the repo
 ***********************************************************************************************************************************/
 static VariantList *
-stanzaInfoList(List *stanzaRepoList, const String *backupLabel, unsigned int repoIdxMin, unsigned int repoIdxMax)
+stanzaInfoList(List *stanzaRepoList, const String *const backupLabel, const unsigned int repoIdxMin, const unsigned int repoIdxMax)
 {
     FUNCTION_TEST_BEGIN();
         FUNCTION_TEST_PARAM(LIST, stanzaRepoList);
@@ -647,7 +653,7 @@ stanzaInfoList(List *stanzaRepoList, const String *backupLabel, unsigned int rep
 
     ASSERT(stanzaRepoList != NULL);
 
-    VariantList *result = varLstNew();
+    VariantList *const result = varLstNew();
 
     // Sort the list of stanzas
     stanzaRepoList = lstSort(stanzaRepoList, sortOrderAsc);
@@ -655,14 +661,14 @@ stanzaInfoList(List *stanzaRepoList, const String *backupLabel, unsigned int rep
     // Process each stanza requested
     for (unsigned int idx = 0; idx < lstSize(stanzaRepoList); idx++)
     {
-        InfoStanzaRepo *stanzaData = lstGet(stanzaRepoList, idx);
+        InfoStanzaRepo *const stanzaData = lstGet(stanzaRepoList, idx);
 
         // Create the stanzaInfo and section variables
-        Variant *stanzaInfo = varNewKv(kvNew());
-        VariantList *dbSection = varLstNew();
-        VariantList *backupSection = varLstNew();
-        VariantList *archiveSection = varLstNew();
-        VariantList *repoSection = varLstNew();
+        Variant *const stanzaInfo = varNewKv(kvNew());
+        VariantList *const dbSection = varLstNew();
+        VariantList *const backupSection = varLstNew();
+        VariantList *const archiveSection = varLstNew();
+        VariantList *const repoSection = varLstNew();
 
         int stanzaStatusCode = -1;
         uint64_t stanzaCipherType = cipherTypeNone;
@@ -673,9 +679,9 @@ stanzaInfoList(List *stanzaRepoList, const String *backupLabel, unsigned int rep
         // Get the stanza for each requested repo
         for (unsigned int repoIdx = repoIdxMin; repoIdx <= repoIdxMax; repoIdx++)
         {
-            InfoRepoData *repoData = &stanzaData->repoList[repoIdx];
+            InfoRepoData *const repoData = &stanzaData->repoList[repoIdx];
 
-            Variant *repoInfo = varNewKv(kvNew());
+            Variant *const repoInfo = varNewKv(kvNew());
             kvPut(varKv(repoInfo), REPO_KEY_KEY_VAR, VARUINT(repoData->key));
             kvPut(varKv(repoInfo), KEY_CIPHER_VAR, VARSTR(strIdToStr(repoData->cipher)));
 
@@ -694,7 +700,7 @@ stanzaInfoList(List *stanzaRepoList, const String *backupLabel, unsigned int rep
                     for (unsigned int pgIdx = infoPgDataTotal(infoBackupPg(repoData->backupInfo)) - 1; (int)pgIdx >= 0; pgIdx--)
                     {
                         InfoPgData pgData = infoPgData(infoBackupPg(repoData->backupInfo), pgIdx);
-                        Variant *pgInfo = varNewKv(kvNew());
+                        Variant *const pgInfo = varNewKv(kvNew());
 
                         kvPut(varKv(pgInfo), DB_KEY_ID_VAR, VARUINT(pgData.id));
                         kvPut(varKv(pgInfo), DB_KEY_SYSTEM_ID_VAR, VARUINT64(pgData.systemId));
@@ -766,7 +772,7 @@ stanzaInfoList(List *stanzaRepoList, const String *backupLabel, unsigned int rep
         kvPut(varKv(stanzaInfo), STANZA_KEY_BACKUP_VAR, varNewVarLst(backupSection));
 
         // Set the overall stanza status
-        stanzaStatus(stanzaStatusCode, stanzaData->backupLockHeld, stanzaInfo);
+        stanzaStatus(stanzaStatusCode, stanzaData, stanzaInfo);
 
         // Set the overall cipher type
         if (stanzaCipherType != INFO_STANZA_STATUS_CODE_MIXED)
@@ -1193,6 +1199,12 @@ infoUpdateStanza(
                     stanzaRepo->backupLockHeld = lockRead(
                         cfgOptionStr(cfgOptLockPath), stanzaRepo->name, lockTypeBackup).status == lockReadStatusValid;
                     stanzaRepo->backupLockChecked = true;
+
+                    if (stanzaRepo->backupLockHeld)
+                    {
+                        stanzaRepo->percentComplete =
+                            lockRead(cfgOptionStr(cfgOptLockPath), stanzaRepo->name, lockTypeBackup).data.percentComplete;
+                    }
                 }
             }
 
@@ -1234,13 +1246,13 @@ infoRender(void)
     MEM_CONTEXT_TEMP_BEGIN()
     {
         // Get stanza if specified
-        const String *stanza = cfgOptionStrNull(cfgOptStanza);
+        const String *const stanza = cfgOptionStrNull(cfgOptStanza);
 
         // Initialize the list of stanzas on all repos
-        List *stanzaRepoList = lstNewP(sizeof(InfoStanzaRepo), .sortOrder = sortOrderAsc, .comparator = lstComparatorStr);
+        List *const stanzaRepoList = lstNewP(sizeof(InfoStanzaRepo), .sortOrder = sortOrderAsc, .comparator = lstComparatorStr);
 
         // Get the backup label if specified
-        const String *backupLabel = cfgOptionStrNull(cfgOptSet);
+        const String *const backupLabel = cfgOptionStrNull(cfgOptSet);
         bool backupFound = false;
 
         // Since the --set option depends on the --stanza option, the parser will error before this if the backup label is
@@ -1261,7 +1273,7 @@ infoRender(void)
         }
 
         // Initialize error reporting at the repo level
-        InfoRepoData *repoErrorList = memNew(repoTotal * sizeof(InfoRepoData));
+        InfoRepoData *const repoErrorList = memNew(repoTotal * sizeof(InfoRepoData));
         bool repoError = false;
 
         for (unsigned int repoIdx = repoIdxMin; repoIdx <= repoIdxMax; repoIdx++)
@@ -1282,7 +1294,7 @@ infoRender(void)
             TRY_BEGIN()
             {
                 // Get the repo storage in case it is remote and encryption settings need to be pulled down
-                const Storage *storageRepo = storageRepoIdx(repoIdx);
+                const Storage *const storageRepo = storageRepoIdx(repoIdx);
 
                 // If a backup set was specified, see if the manifest exists
                 if (backupLabel != NULL)
@@ -1317,10 +1329,10 @@ infoRender(void)
                 // Process each stanza
                 for (unsigned int stanzaIdx = 0; stanzaIdx < strLstSize(stanzaNameList); stanzaIdx++)
                 {
-                    String *stanzaName = strLstGet(stanzaNameList, stanzaIdx);
+                    const String *const stanzaName = strLstGet(stanzaNameList, stanzaIdx);
 
                     // Get the stanza if it is already in the list
-                    InfoStanzaRepo *stanzaRepo = lstFind(stanzaRepoList, &stanzaName);
+                    InfoStanzaRepo *const stanzaRepo = lstFind(stanzaRepoList, &stanzaName);
 
                     // If the stanza was already added to the array, then update this repo for the stanza, else the stanza has not
                     // yet been added to the list, so add it
@@ -1366,7 +1378,7 @@ infoRender(void)
             TRY_END();
         }
 
-        VariantList *infoList = varLstNew();
+        const VariantList *infoList = varLstNew();
         String *resultStr = strNew();
 
         // Record any repository-level errors with each stanza -- if there are no stanzas and one was not requested, then create an
@@ -1390,7 +1402,7 @@ infoRender(void)
                 // For each stanza report the repos that were in error
                 for (unsigned int idx = 0; idx < lstSize(stanzaRepoList); idx++)
                 {
-                    InfoStanzaRepo *stanzaData = lstGet(stanzaRepoList, idx);
+                    InfoStanzaRepo *const stanzaData = lstGet(stanzaRepoList, idx);
 
                     for (unsigned int repoIdx = repoIdxMin; repoIdx <= repoIdxMax; repoIdx++)
                     {
@@ -1407,7 +1419,7 @@ infoRender(void)
         {
             // Get the stanza record and update each repo to indicate backup not found where there is not already an error status
             // so that errors on other repositories will be displayed and not overwritten
-            InfoStanzaRepo *stanzaRepo = lstFind(stanzaRepoList, &stanza);
+            InfoStanzaRepo *const stanzaRepo = lstFind(stanzaRepoList, &stanza);
 
             for (unsigned int repoIdx = repoIdxMin; repoIdx <= repoIdxMax; repoIdx++)
             {
@@ -1432,8 +1444,8 @@ infoRender(void)
             {
                 for (unsigned int stanzaIdx = 0; stanzaIdx < varLstSize(infoList); stanzaIdx++)
                 {
-                    KeyValue *stanzaInfo = varKv(varLstGet(infoList, stanzaIdx));
-                    const String *stanzaName = varStr(kvGet(stanzaInfo, KEY_NAME_VAR));
+                    KeyValue *const stanzaInfo = varKv(varLstGet(infoList, stanzaIdx));
+                    const String *const stanzaName = varStr(kvGet(stanzaInfo, KEY_NAME_VAR));
 
                     // Add a carriage return between stanzas
                     if (stanzaIdx > 0)
@@ -1443,13 +1455,18 @@ infoRender(void)
                     strCatFmt(resultStr, "stanza: %s\n    status: ", strZ(stanzaName));
 
                     // If an error has occurred, provide the information that is available and move onto next stanza
-                    KeyValue *stanzaStatus = varKv(kvGet(stanzaInfo, STANZA_KEY_STATUS_VAR));
+                    KeyValue *const stanzaStatus = varKv(kvGet(stanzaInfo, STANZA_KEY_STATUS_VAR));
                     int statusCode = varInt(kvGet(stanzaStatus, STATUS_KEY_CODE_VAR));
 
                     // Get the lock info
-                    KeyValue *lockKv = varKv(kvGet(stanzaStatus, STATUS_KEY_LOCK_VAR));
-                    KeyValue *backupLockKv = varKv(kvGet(lockKv, STATUS_KEY_LOCK_BACKUP_VAR));
+                    const KeyValue *const lockKv = varKv(kvGet(stanzaStatus, STATUS_KEY_LOCK_VAR));
+                    const KeyValue *const backupLockKv = varKv(kvGet(lockKv, STATUS_KEY_LOCK_BACKUP_VAR));
                     bool backupLockHeld = varBool(kvGet(backupLockKv, STATUS_KEY_LOCK_BACKUP_HELD_VAR));
+                    const Variant *const percentComplete = kvGet(backupLockKv, STATUS_KEY_LOCK_BACKUP_PERCENT_COMPLETE_VAR);
+
+                    const String *const percentCompleteStr = percentComplete != NULL ?
+                        strNewFmt(" - %u.%02u%% complete", varUInt(percentComplete) / 100, varUInt(percentComplete) % 100) :
+                        EMPTY_STR;
 
                     if (statusCode != INFO_STANZA_STATUS_CODE_OK)
                     {
@@ -1463,17 +1480,19 @@ infoRender(void)
                                 statusCode == INFO_STANZA_STATUS_CODE_MIXED ? INFO_STANZA_MIXED :
                                     strZ(strNewFmt(INFO_STANZA_STATUS_ERROR " (%s)",
                                     strZ(varStr(kvGet(stanzaStatus, STATUS_KEY_MESSAGE_VAR))))),
-                                backupLockHeld == true ? " (" INFO_STANZA_STATUS_MESSAGE_LOCK_BACKUP ")" : "");
+                                backupLockHeld == true ?
+                                    strZ(strNewFmt(" (" INFO_STANZA_STATUS_MESSAGE_LOCK_BACKUP "%s)", strZ(percentCompleteStr))) :
+                                    "");
 
                             // Output the status per repo
-                            VariantList *repoSection = kvGetList(stanzaInfo, STANZA_KEY_REPO_VAR);
+                            const VariantList *const repoSection = kvGetList(stanzaInfo, STANZA_KEY_REPO_VAR);
                             bool multiRepo = varLstSize(repoSection) > 1;
-                            const char *formatSpacer = multiRepo ? "               " : "            ";
+                            const char *const formatSpacer = multiRepo ? "               " : "            ";
 
                             for (unsigned int repoIdx = 0; repoIdx < varLstSize(repoSection); repoIdx++)
                             {
-                                KeyValue *repoInfo = varKv(varLstGet(repoSection, repoIdx));
-                                KeyValue *repoStatus = varKv(kvGet(repoInfo, STANZA_KEY_STATUS_VAR));
+                                const KeyValue *const repoInfo = varKv(varLstGet(repoSection, repoIdx));
+                                const KeyValue *const repoStatus = varKv(kvGet(repoInfo, STANZA_KEY_STATUS_VAR));
 
                                 // If more than one repo configured, then add the repo status per repo
                                 if (multiRepo)
@@ -1485,7 +1504,7 @@ infoRender(void)
                                 {
                                     if (varInt(kvGet(repoStatus, STATUS_KEY_CODE_VAR)) == INFO_STANZA_STATUS_CODE_OTHER)
                                     {
-                                        StringList *repoError = strLstNewSplit(
+                                        const StringList *const repoError = strLstNewSplit(
                                             varStr(kvGet(repoStatus, STATUS_KEY_MESSAGE_VAR)), STRDEF("\n"));
 
                                         strCatFmt(
@@ -1508,14 +1527,20 @@ infoRender(void)
                             strCatFmt(
                                 resultStr, "%s (%s%s\n", INFO_STANZA_STATUS_ERROR,
                                 strZ(varStr(kvGet(stanzaStatus, STATUS_KEY_MESSAGE_VAR))),
-                                backupLockHeld == true ? ", " INFO_STANZA_STATUS_MESSAGE_LOCK_BACKUP ")" : ")");
+                                backupLockHeld == true ?
+                                    strZ(strNewFmt(", " INFO_STANZA_STATUS_MESSAGE_LOCK_BACKUP "%s)", strZ(percentCompleteStr))) :
+                                    ")");
                         }
                     }
                     else
                     {
                         // Change displayed status if backup lock is found
                         if (backupLockHeld)
-                            strCatFmt(resultStr, "%s (%s)\n", INFO_STANZA_STATUS_OK, INFO_STANZA_STATUS_MESSAGE_LOCK_BACKUP);
+                        {
+                            strCatFmt(
+                                resultStr, "%s (%s%s)\n", INFO_STANZA_STATUS_OK, INFO_STANZA_STATUS_MESSAGE_LOCK_BACKUP,
+                                strZ(percentCompleteStr));
+                        }
                         else
                             strCatFmt(resultStr, "%s\n", INFO_STANZA_STATUS_OK);
                     }
@@ -1528,11 +1553,11 @@ infoRender(void)
                         // If the cipher is mixed across repos for this stanza then display the per-repo cipher type
                         if (strEq(varStr(kvGet(stanzaInfo, KEY_CIPHER_VAR)), STRDEF(INFO_STANZA_MIXED)))
                         {
-                            VariantList *repoSection = kvGetList(stanzaInfo, STANZA_KEY_REPO_VAR);
+                            const VariantList *const repoSection = kvGetList(stanzaInfo, STANZA_KEY_REPO_VAR);
 
                             for (unsigned int repoIdx = 0; repoIdx < varLstSize(repoSection); repoIdx++)
                             {
-                                KeyValue *repoInfo = varKv(varLstGet(repoSection, repoIdx));
+                                const KeyValue *const repoInfo = varKv(varLstGet(repoSection, repoIdx));
 
                                 strCatFmt(
                                     resultStr, "        repo%u: %s\n", varUInt(kvGet(repoInfo, REPO_KEY_KEY_VAR)),
@@ -1544,7 +1569,7 @@ infoRender(void)
                     // Get the current database for this stanza
                     if (!varLstEmpty(kvGetList(stanzaInfo, STANZA_KEY_DB_VAR)))
                     {
-                        InfoStanzaRepo *stanzaRepo = lstFind(stanzaRepoList, &stanzaName);
+                        const InfoStanzaRepo *const stanzaRepo = lstFind(stanzaRepoList, &stanzaName);
 
                         formatTextDb(
                             stanzaInfo, resultStr, pgVersionToStr(stanzaRepo->currentPgVersion), stanzaRepo->currentPgSystemId,
