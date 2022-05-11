@@ -194,6 +194,8 @@ storagePosixInfoList(
                 {
                     const String *name = STR(dirEntry->d_name);
 
+                    LOG_TRACE_FMT("!!! READDIR DIRENTRY_DNAME %s", dirEntry->d_name);
+
                     // Always skip ..
                     if (!strEq(name, DOTDOT_STR))
                     {
@@ -401,24 +403,31 @@ typedef struct StoragePosixPathRemoveData
 static void
 storagePosixPathRemoveCallback(void *const callbackData, const StorageInfo *const info)
 {
-    FUNCTION_TEST_BEGIN();
-        FUNCTION_TEST_PARAM_P(VOID, callbackData);
-        FUNCTION_TEST_PARAM_P(STORAGE_INFO, info);
-    FUNCTION_TEST_END();
+    FUNCTION_LOG_BEGIN(logLevelTrace);
+        FUNCTION_LOG_PARAM_P(VOID, callbackData);
+        FUNCTION_LOG_PARAM_P(STORAGE_INFO, info);
+    FUNCTION_LOG_END();
 
     ASSERT(callbackData != NULL);
     ASSERT(info != NULL);
+
+    LOG_TRACE_FMT("!!! TYPE/NAME %u/%s", info->type, strZ(info->name));
 
     if (!strEqZ(info->name, "."))
     {
         StoragePosixPathRemoveData *const data = callbackData;
         String *const file = strNewFmt("%s/%s", strZ(data->path), strZ(info->name));
 
+        LOG_TRACE_FMT("!!! UNLINK FILE %s", strZ(file));
+
         // Rather than stat the file to discover what type it is, just try to unlink it and see what happens
         if (unlink(strZ(file)) == -1)                                                                               // {vm_covered}
         {
+            int errsv = errno;
+            LOG_TRACE_FMT("!!! UNLINK ERRNO %d %s", errsv, strerror(errsv));
+
             // These errors indicate that the entry is actually a path so we'll try to delete it that way
-            if (errno == EPERM || errno == EISDIR)              // {uncovered_branch - no EPERM on tested systems}
+            if (errsv == EPERM || errsv == EISDIR)              // {uncovered_branch - no EPERM on tested systems}
             {
                 storageInterfacePathRemoveP(data->driver, file, true);
             }
@@ -426,11 +435,13 @@ storagePosixPathRemoveCallback(void *const callbackData, const StorageInfo *cons
             else
                 THROW_SYS_ERROR_FMT(PathRemoveError, STORAGE_ERROR_PATH_REMOVE_FILE, strZ(file));                   // {vm_covered}
         }
+        // !!! may be excessive as lack of ERRNO trace == success
+        LOG_TRACE_FMT("!!! UNLINK SUCCESS %s", strZ(file));
 
         strFree(file);
     }
 
-    FUNCTION_TEST_RETURN_VOID();
+    FUNCTION_LOG_RETURN_VOID();
 }
 
 static bool
@@ -468,7 +479,10 @@ storagePosixPathRemove(THIS_VOID, const String *path, bool recurse, StorageInter
         // Delete the path
         if (rmdir(strZ(path)) == -1)
         {
-            if (errno != ENOENT)                                                                                    // {vm_covered}
+            int errsv = errno;
+            LOG_TRACE_FMT("!!! RMDIR ERRNO %d %s [%s]", errsv, strerror(errsv), strZ(path));
+
+            if (errsv != ENOENT)                                                                                    // {vm_covered}
                 THROW_SYS_ERROR_FMT(PathRemoveError, STORAGE_ERROR_PATH_REMOVE, strZ(path));                        // {vm_covered}
 
             // Path does not exist
