@@ -403,10 +403,10 @@ typedef struct StoragePosixPathRemoveData
 static void
 storagePosixPathRemoveCallback(void *const callbackData, const StorageInfo *const info)
 {
-    FUNCTION_LOG_BEGIN(logLevelTrace);
-        FUNCTION_LOG_PARAM_P(VOID, callbackData);
-        FUNCTION_LOG_PARAM_P(STORAGE_INFO, info);
-    FUNCTION_LOG_END();
+    FUNCTION_TEST_BEGIN();
+        FUNCTION_TEST_PARAM_P(VOID, callbackData);
+        FUNCTION_TEST_PARAM_P(STORAGE_INFO, info);
+    FUNCTION_TEST_END();
 
     ASSERT(callbackData != NULL);
     ASSERT(info != NULL);
@@ -441,7 +441,7 @@ storagePosixPathRemoveCallback(void *const callbackData, const StorageInfo *cons
         strFree(file);
     }
 
-    FUNCTION_LOG_RETURN_VOID();
+    FUNCTION_TEST_RETURN_VOID();
 }
 
 static bool
