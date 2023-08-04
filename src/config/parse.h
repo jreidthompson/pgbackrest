@@ -79,7 +79,7 @@ typedef struct CfgParseOptionResult
     bool beta;                                                      // Is the option in beta?
 } CfgParseOptionResult;
 
-#define cfgParseOptionP(optionName, ...)                                                                                            \
+#define cfgParseOptionP(optionName, ...)                                                                                           \
     cfgParseOption(optionName, (CfgParseOptionParam){VAR_PARAM_INIT, __VA_ARGS__})
 
 FN_EXTERN CfgParseOptionResult cfgParseOption(const String *const optionName, const CfgParseOptionParam param);

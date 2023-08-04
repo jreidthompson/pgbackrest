@@ -20,7 +20,6 @@ Archive Common
 #include "postgres/interface.h"
 #include "postgres/version.h"
 #include "storage/helper.h"
-#include "storage/helper.h"
 
 /***********************************************************************************************************************************
 WAL segment constants
