@@ -17,6 +17,7 @@ Test SFTP Storage
 #include "common/harnessSocket.h"
 #include "common/harnessStorage.h"
 
+#ifdef HAVE_LIBSSH2
 /***********************************************************************************************************************************
 Constants
 ***********************************************************************************************************************************/
@@ -47,6 +48,19 @@ storageTestPathExpression(const String *expression, const String *path)
 
     return result;
 }
+#endif // HAVE_LIBSSH2
+
+/***********************************************************************************************************************************
+Test function for build without libssh2 library
+***********************************************************************************************************************************/
+static void
+storageSftpNotPresent(void)
+{
+    FUNCTION_TEST_BEGIN();
+    FUNCTION_TEST_END();
+
+    THROW_FMT(OptionInvalidValueError, PROJECT_NAME " not built with sftp support");
+}
 
 /***********************************************************************************************************************************
 Test Run
@@ -61,12 +75,14 @@ testRun(void)
     // Install shim to manage true/false return for fdReady
     hrnFdReadyShimInstall();
 
+#ifdef HAVE_LIBSSH2
     // Directory and file that cannot be accessed to test permissions errors
     const String *fileNoPerm = STRDEF(TEST_PATH "/noperm/noperm");
     String *pathNoPerm = strPath(fileNoPerm);
 
     // Write file for testing if storage is read-only
     const String *writeFile = STRDEF(TEST_PATH "/writefile");
+#endif // HAVE_LIBSSH2
 
     // This test should always be first so the storage helper is uninitialized
     // *****************************************************************************************************************************
@@ -92,6 +108,7 @@ testRun(void)
     // *****************************************************************************************************************************
     if (testBegin("storageNew()"))
     {
+#ifdef HAVE_LIBSSH2
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("ssh2 init failure");
 
@@ -483,11 +500,20 @@ testRun(void)
         TEST_RESULT_BOOL(storageFeature(storageTest, storageFeaturePath), true, "check path feature");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("excercise storageSftpNotPresent");
+
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storageExists() and storagePathExists()"))
     {
+#ifdef HAVE_LIBSSH2
         // Mimic creation of /noperm/noperm for permission denied
         // drwx------ 2 root root 3 Dec  5 15:30 noperm
         // noperm/:
@@ -600,11 +626,15 @@ testRun(void)
         HRN_FORK_END();
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storageInfo()"))
     {
+#ifdef HAVE_LIBSSH2
         // File open error via permission denied sftp error
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
         {
@@ -908,11 +938,15 @@ testRun(void)
         TEST_RESULT_STR(info.group, NULL, "check group");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storageNewItrP()"))
     {
+#ifdef HAVE_LIBSSH2
         // Mimic creation of /noperm/noperm
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
         {
@@ -1905,11 +1939,15 @@ testRun(void)
             .level = storageInfoLevelBasic, .expression = "\\/file$");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storageList()"))
     {
+#ifdef HAVE_LIBSSH2
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("path missing");
 
@@ -2109,11 +2147,15 @@ testRun(void)
             "unable to close path '" TEST_PATH "' after listing");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storagePath()"))
     {
+#ifdef HAVE_LIBSSH2
         Storage *storageTest = NULL;
 
         // -------------------------------------------------------------------------------------------------------------------------
@@ -2182,11 +2224,15 @@ testRun(void)
         TEST_ERROR(storagePathP(storageTest, STRDEF("<WHATEVS>")), AssertError, "invalid expression '<WHATEVS>'");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storagePathCreate()"))
     {
+#ifdef HAVE_LIBSSH2
         Storage *storageTest = NULL;
 
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
@@ -2341,11 +2387,15 @@ testRun(void)
             "sftp error unable to create path '" TEST_PATH "/subfail'");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storagePathRemove()"))
     {
+#ifdef HAVE_LIBSSH2
         Storage *storageTest = NULL;
 
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
@@ -2640,11 +2690,15 @@ testRun(void)
             strZ(pathRemove1));
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storageNewRead()"))
     {
+#ifdef HAVE_LIBSSH2
         Storage *storageTest = NULL;
         StorageRead *file = NULL;
         const String *fileName = STRDEF(TEST_PATH "/readtest.txt");
@@ -2705,11 +2759,15 @@ testRun(void)
         TEST_RESULT_VOID(ioReadClose(storageReadIo(file)), "close file");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storageReadClose()"))
     {
+#ifdef HAVE_LIBSSH2
         // ------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("close success via storageReadSftpClose()");
 
@@ -2901,11 +2959,15 @@ testRun(void)
             "unable to read '" TEST_PATH "/readtest.txt'");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storageNewWrite()"))
     {
+#ifdef HAVE_LIBSSH2
         const String *fileName = STRDEF(TEST_PATH "/sub1/testfile");
         StorageWrite *file = NULL;
 
@@ -3404,11 +3466,15 @@ testRun(void)
         TEST_RESULT_VOID(ioWriteClose(storageWriteIo(file)), "close file");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storagePut() and storageGet()"))
     {
+#ifdef HAVE_LIBSSH2
         ioBufferSizeSet(65536);
 
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
@@ -3932,11 +3998,15 @@ testRun(void)
             "timeout reading '" TEST_PATH "/test.txt'");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storageRemove()"))
     {
+#ifdef HAVE_LIBSSH2
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("remove - file missing");
 
@@ -4149,11 +4219,15 @@ testRun(void)
         TEST_ERROR_FMT(ioWriteOpen(storageWriteIo(file)), FileOpenError, STORAGE_ERROR_WRITE_OPEN, strZ(fileName));
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("StorageRead"))
     {
+#ifdef HAVE_LIBSSH2
         Storage *storageTest = NULL;
         StorageRead *file = NULL;
 
@@ -4296,11 +4370,15 @@ testRun(void)
         TEST_RESULT_VOID(storageReadMove(NULL, memContextTop()), "move null file");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("StorageWrite"))
     {
+#ifdef HAVE_LIBSSH2
         Storage *storageTest = NULL;
         StorageWrite *file = NULL;
 
@@ -4558,11 +4636,15 @@ testRun(void)
         storageRemoveP(storageTest, fileName, .errorOnMissing = true);
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storageRepo*()"))
     {
+#ifdef HAVE_LIBSSH2
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
         {
             HRNLIBSSH2_MACRO_STARTUP(),
@@ -4676,11 +4758,15 @@ testRun(void)
         TEST_RESULT_STR_Z(strIdToStr(storageType(storage)), "sftp", "storage type is sftp");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storage)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storageRepoGet() and StorageDriverCifs"))
     {
+#ifdef HAVE_LIBSSH2
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
         {
             HRNLIBSSH2_MACRO_STARTUP(),
@@ -4736,11 +4822,15 @@ testRun(void)
         TEST_RESULT_VOID(storagePathSyncP(storage, STRDEF(BOGUS_STR)), "path sync is a noop");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storage)));
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storageSftpLibSsh2SessionFreeResource()"))
     {
+#ifdef HAVE_LIBSSH2
         Storage *storageTest = NULL;
         StorageSftp *storageSftp = NULL;
 
@@ -5030,11 +5120,15 @@ testRun(void)
         TEST_ERROR_FMT(
             memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest))), ServiceError,
             "timeout freeing libssh2 session: libssh2 errno [-37]");
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     // *****************************************************************************************************************************
     if (testBegin("storageSftpEvalLibSsh2Error()"))
     {
+#ifdef HAVE_LIBSSH2
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("storageSftpEvalLibSsh2Error()");
 
@@ -5062,6 +5156,9 @@ testRun(void)
                 LIBSSH2_ERROR_SFTP_PROTOCOL, 16, &FileRemoveError, NULL, NULL),
             FileRemoveError,
             "libssh2 error [-31]: sftp error [16]");
+#else
+        TEST_ERROR(storageSftpNotPresent(), OptionInvalidValueError,  "pgBackRest not built with sftp support");
+#endif // HAVE_LIBSSH2
     }
 
     hrnFdReadyShimUninstall();
