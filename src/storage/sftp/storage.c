@@ -36,6 +36,7 @@ struct StorageSftp
     LIBSSH2_SFTP *sftpSession;                                      // LibSsh2 session sftp session
     LIBSSH2_SFTP_HANDLE *sftpHandle;                                // LibSsh2 session sftp handle
     TimeMSec timeout;                                               // Session timeout
+    LIBSSH2_AGENT *agent;                                           // LibSsh2 ssh agent handle
 };
 
 /***********************************************************************************************************************************
@@ -306,6 +307,17 @@ storageSftpLibSsh2SessionFreeResource(THIS_VOID)
                 THROW_FMT(
                     ServiceError, "timeout shutting down sftpSession: libssh2 errno [%d]", rc);
         }
+    }
+
+    if (this->agent)
+    {
+        rc = libssh2_agent_disconnect(this->agent);
+
+        if (rc != 0)
+            THROW_FMT(ServiceError, "failed to disconnect libssh2 ssh2 agent: libssh2 errno [%d]", rc);
+
+        // Function returns void
+        libssh2_agent_free(this->agent);
     }
 
     if (this->session != NULL)
@@ -1091,22 +1103,22 @@ storageSftpNew(
         FUNCTION_LOG_PARAM(TIME_MSEC, timeout);
         FUNCTION_LOG_PARAM(STRING, keyPriv);
         FUNCTION_LOG_PARAM(STRING_ID, hostKeyHashType);
+        FUNCTION_LOG_PARAM(STRING, param.hostFingerprint);
+        FUNCTION_LOG_PARAM(STRING_ID, param.hostKeyCheckType);
+        FUNCTION_LOG_PARAM(STRING, param.identityAgent);
         FUNCTION_LOG_PARAM(STRING, param.keyPub);
         FUNCTION_TEST_PARAM(STRING, param.keyPassphrase);
-        FUNCTION_LOG_PARAM(STRING_ID, param.hostKeyCheckType);
-        FUNCTION_LOG_PARAM(STRING, param.hostFingerprint);
         FUNCTION_LOG_PARAM(STRING_LIST, param.knownHosts);
         FUNCTION_LOG_PARAM(MODE, param.modeFile);
         FUNCTION_LOG_PARAM(MODE, param.modePath);
-        FUNCTION_LOG_PARAM(BOOL, param.write);
         FUNCTION_LOG_PARAM(FUNCTIONP, param.pathExpressionFunction);
+        FUNCTION_LOG_PARAM(BOOL, param.write);
     FUNCTION_LOG_END();
 
     ASSERT(path != NULL);
     ASSERT(host != NULL);
     ASSERT(port != 0);
     ASSERT(user != NULL);
-    ASSERT(keyPriv != NULL);
     ASSERT(hostKeyHashType != 0);
     // Initialize user module
     userInit();
@@ -1315,35 +1327,118 @@ storageSftpNew(
             libssh2_knownhost_free(knownHostsList);
         }
 
-        // Perform public key authorization, expand leading tilde key file paths if needed
-        String *const privKeyPath = regExpMatchOne(STRDEF("^ *~"), keyPriv) ? storageSftpExpandTildePath(keyPriv) : strDup(keyPriv);
-        String *const pubKeyPath =
-            param.keyPub != NULL && regExpMatchOne(STRDEF("^ *~"), param.keyPub) ?
-                storageSftpExpandTildePath(param.keyPub) : strDup(param.keyPub);
-
-        do
+        // Authenticate via ssh agent if no private key is provided and ssh agent is not explicitely disabled
+        if (keyPriv == NULL && (param.identityAgent == NULL || !strEqZ(strLower(strTrim(strDup(param.identityAgent))), "none")))
         {
-            rc = libssh2_userauth_publickey_fromfile(
-                this->session, strZ(user), strZNull(pubKeyPath), strZ(privKeyPath), strZNull(param.keyPassphrase));
+            // Init the libssh2 agent
+            this->agent = libssh2_agent_init(this->session);
+
+            if (this->agent == NULL)
+                THROW_FMT(ServiceError, "failure initializing ssh-agent support");
+
+            // If a specific ssh agent path has been requested, set it for the agent
+            if (param.identityAgent != NULL)
+            {
+                // Does the version of libssh2 (>= 1.9.0) support the libssh2_agent_set_identity_path function
+#if LIBSSH2_VERSION_NUM >= 0x010900
+                libssh2_agent_set_identity_path(
+                    this->agent,
+                    regExpMatchOne(STRDEF("^ *~"), param.identityAgent) ?
+                        strZ(storageSftpExpandTildePath(param.identityAgent)) : strZ(strTrim(strDup(param.identityAgent))));
+#else
+                THROW_FMT(
+                    ServiceError,
+                    "libssh2 version %s does not support ssh-agent identity path, requires version 1.9 or greater",
+                    libssh2_version(0));
+#endif
+            }
+
+            if ((rc = libssh2_agent_connect(this->agent)) != 0)
+                THROW_FMT(ServiceError, "failure connecting to ssh-agent [%d]", rc);
+
+            if ((rc = libssh2_agent_list_identities(this->agent)) != 0)
+                THROW_FMT(ServiceError, "failure requesting identities to ssh-agent [%d]", rc);
+
+            struct libssh2_agent_publickey *identity, *prev_identity = NULL;
+
+            for (;;)
+            {
+                rc = libssh2_agent_get_identity(this->agent, &identity, prev_identity);
+
+                // Break if we've reached the end of the public keys
+                if (rc == 1)
+                    break;
+
+                // Throw an error if libssh2_agent_get_identity errored
+                if (rc < 0)
+                    THROW_FMT(ServiceError, "failure obtaining identity from ssh-agent [%d]", rc);
+
+                // Attempt to authenticate with the current identity
+                do
+                {
+                    rc = libssh2_agent_userauth(this->agent, strZ(user), identity);
+                }
+                while (storageSftpWaitFd(this, rc));
+
+                // Log the result of the authentication attempt
+                if (rc != 0)
+                    LOG_DETAIL_FMT("ssh-agent authentication with username %s failed [%d]", strZ(user), rc);
+                else
+                {
+                    LOG_DETAIL_FMT("ssh-agent authentication with username %s succeeded", strZ(user));
+                    break;
+                }
+
+                prev_identity = identity;
+            }
+
+            if (rc != 0)
+                THROW_FMT(ServiceError, "ssh-agent authentication failure [%d]", rc);
         }
-        while (storageSftpWaitFd(this, rc));
-
-        strFree(privKeyPath);
-        strFree(pubKeyPath);
-
-        if (rc != 0)
+        else
         {
-            if (rc == LIBSSH2_ERROR_EAGAIN)
-                THROW_FMT(ServiceError, "timeout during public key authentication");
+            if (keyPriv != NULL)
+            {
+                // Perform public key authorization, expand leading tilde key file paths if needed
+                String *const privKeyPath =
+                    regExpMatchOne(STRDEF("^ *~"), keyPriv) ? storageSftpExpandTildePath(keyPriv) : strDup(keyPriv);
+                String *const pubKeyPath =
+                    param.keyPub != NULL && regExpMatchOne(STRDEF("^ *~"), param.keyPub) ?
+                        storageSftpExpandTildePath(param.keyPub) : strDup(param.keyPub);
 
-            storageSftpEvalLibSsh2Error(
-                rc, libssh2_sftp_last_error(this->sftpSession), &ServiceError,
-                STRDEF("public key authentication failed"),
-                STRDEF(
-                    "HINT: libssh2 compiled against non-openssl libraries requires --repo-sftp-private-key-file and"
-                    " --repo-sftp-public-key-file to be provided\n"
-                    "HINT: libssh2 versions before 1.9.0 expect a PEM format keypair, try ssh-keygen -m PEM -t rsa -P \"\" to"
-                    " generate the keypair"));
+                do
+                {
+                    rc = libssh2_userauth_publickey_fromfile(
+                        this->session, strZ(user), strZNull(pubKeyPath), strZ(privKeyPath), strZNull(param.keyPassphrase));
+                }
+                while (storageSftpWaitFd(this, rc));
+
+                strFree(privKeyPath);
+                strFree(pubKeyPath);
+
+                if (rc != 0)
+                {
+                    if (rc == LIBSSH2_ERROR_EAGAIN)
+                        THROW_FMT(ServiceError, "timeout during public key authentication");
+
+                    storageSftpEvalLibSsh2Error(
+                        rc, libssh2_sftp_last_error(this->sftpSession), &ServiceError,
+                        STRDEF("public key authentication failed"),
+                        STRDEF(
+                            "HINT: libssh2 compiled against non-openssl libraries requires --repo-sftp-private-key-file and"
+                            " --repo-sftp-public-key-file to be provided\n"
+                            "HINT: libssh2 versions before 1.9.0 expect a PEM format keypair, try ssh-keygen -m PEM -t rsa -P \"\" "
+                            "to generate the keypair"));
+                }
+            }
+            else
+            {
+                THROW_FMT(
+                    ConfigError,
+                    "sftp auth --repo-sftp-identity-agent is configured as 'none' (disabled) and --repo-sftp-private-key-file is "
+                    "empty. Ssh authorization cannot continue, reconfigure --repo-sftp-identity-agent or "
+                    "--repo-sftp-private-key-file appropriately.");
+            }
         }
 
         // Init the sftp session

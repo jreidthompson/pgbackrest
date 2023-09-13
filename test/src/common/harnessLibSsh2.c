@@ -155,6 +155,103 @@ hrnLibSsh2ScriptRun(const char *const function, const VariantList *const param, 
 }
 
 /***********************************************************************************************************************************
+Shim for libssh2_agent_init
+***********************************************************************************************************************************/
+LIBSSH2_AGENT *
+libssh2_agent_init(LIBSSH2_SESSION *session)
+{
+    HrnLibSsh2 *hrnLibSsh2 = hrnLibSsh2ScriptRun(HRNLIBSSH2_AGENT_INIT, NULL, (HrnLibSsh2 *)session);
+
+    return hrnLibSsh2->resultNull ? NULL : (LIBSSH2_AGENT *)hrnLibSsh2;
+}
+
+/***********************************************************************************************************************************
+Shim for libssh2_agent_connect
+***********************************************************************************************************************************/
+int
+libssh2_agent_connect(LIBSSH2_AGENT *agent)
+{
+    return hrnLibSsh2ScriptRun(HRNLIBSSH2_AGENT_CONNECT, NULL, (HrnLibSsh2 *)agent)->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for libssh2_agent_disconnect
+***********************************************************************************************************************************/
+int
+libssh2_agent_disconnect(LIBSSH2_AGENT *agent)
+{
+    return hrnLibSsh2ScriptRun(HRNLIBSSH2_AGENT_DISCONNECT, NULL, (HrnLibSsh2 *)agent)->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for libssh2_agent_free
+***********************************************************************************************************************************/
+void
+libssh2_agent_free(LIBSSH2_AGENT *agent)
+{
+    if (agent == NULL)
+    {
+        snprintf(
+            hrnLibSsh2ScriptError, sizeof(hrnLibSsh2ScriptError),
+            "libssh2 script function 'libssh2_agent_free', expects agent to be not NULL");
+        THROW(AssertError, hrnLibSsh2ScriptError);
+    }
+
+    hrnLibSsh2ScriptRun(HRNLIBSSH2_AGENT_FREE, NULL, (HrnLibSsh2 *)agent);
+}
+
+/***********************************************************************************************************************************
+Shim for libssh2_agent_get_identity
+***********************************************************************************************************************************/
+int
+libssh2_agent_get_identity(LIBSSH2_AGENT *agent, struct libssh2_agent_publickey **store, struct libssh2_agent_publickey *prev)
+{
+    // Avoid compiler complaining of unused params
+    (void)prev;
+    (void)store;
+
+    HrnLibSsh2 *hrnLibSsh2 = hrnLibSsh2ScriptRun(HRNLIBSSH2_AGENT_GET_IDENTITY, NULL, (HrnLibSsh2 *)agent);
+
+    return hrnLibSsh2->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for libssh2_agent_list_identities
+***********************************************************************************************************************************/
+int
+libssh2_agent_list_identities(LIBSSH2_AGENT *agent)
+{
+    return hrnLibSsh2ScriptRun(HRNLIBSSH2_AGENT_LIST_IDENTITIES, NULL, (HrnLibSsh2 *)agent)->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for libssh2_agent_set_identity_path
+***********************************************************************************************************************************/
+void
+libssh2_agent_set_identity_path(LIBSSH2_AGENT *agent, const char *path)
+{
+    // Avoid compiler complaining of unused param
+    (void)path;
+
+    hrnLibSsh2ScriptRun(HRNLIBSSH2_AGENT_SET_IDENTITY_PATH, NULL, (HrnLibSsh2 *)agent);
+}
+
+/***********************************************************************************************************************************
+Shim for libssh2_agent_userauth
+***********************************************************************************************************************************/
+int
+libssh2_agent_userauth(LIBSSH2_AGENT *agent, const char *username, struct libssh2_agent_publickey *identity)
+{
+    // Avoid compiler complaining of unused params
+    (void)username;
+    (void)identity;
+
+    HrnLibSsh2 *hrnLibSsh2 = hrnLibSsh2ScriptRun(HRNLIBSSH2_AGENT_USERAUTH, NULL, (HrnLibSsh2 *)agent);
+
+    return hrnLibSsh2->resultInt;
+}
+
+/***********************************************************************************************************************************
 Shim for libssh2_init
 ***********************************************************************************************************************************/
 int

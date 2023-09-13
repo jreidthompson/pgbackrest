@@ -34,6 +34,14 @@ libssh2 authorization constants
 /***********************************************************************************************************************************
 Function constants
 ***********************************************************************************************************************************/
+#define HRNLIBSSH2_AGENT_INIT                                       "libssh2_agent_init"
+#define HRNLIBSSH2_AGENT_CONNECT                                    "libssh2_agent_connect"
+#define HRNLIBSSH2_AGENT_DISCONNECT                                 "libssh2_agent_disconnect"
+#define HRNLIBSSH2_AGENT_FREE                                       "libssh2_agent_free"
+#define HRNLIBSSH2_AGENT_GET_IDENTITY                               "libssh2_agent_get_identity"
+#define HRNLIBSSH2_AGENT_LIST_IDENTITIES                            "libssh2_agent_list_identities"
+#define HRNLIBSSH2_AGENT_SET_IDENTITY_PATH                          "libssh2_agent_set_identity_path"
+#define HRNLIBSSH2_AGENT_USERAUTH                                   "libssh2_agent_userauth"
 #define HRNLIBSSH2_HOSTKEY_HASH                                     "libssh2_hostkey_hash"
 #define HRNLIBSSH2_INIT                                             "libssh2_init"
 #define HRNLIBSSH2_KNOWNHOST_ADDC                                   "libssh2_knownhost_addc"

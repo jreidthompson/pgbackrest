@@ -2424,6 +2424,15 @@ option:
     command: repo-type
     depend: repo-sftp-host
 
+  repo-sftp-identity-agent:
+    section: global
+    group: repo
+    type: string
+    default: none
+    required: false
+    command: repo-type
+    depend: repo-sftp-host
+
   repo-sftp-known-host:
     section: global
     group: repo
@@ -2440,6 +2449,7 @@ option:
     section: global
     group: repo
     type: string
+    required: false
     command: repo-type
     depend: repo-sftp-host
 

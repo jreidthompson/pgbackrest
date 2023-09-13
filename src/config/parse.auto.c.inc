@@ -8492,12 +8492,97 @@ static const ParseRuleOption parseRuleOption[CFG_OPTION_TOTAL] =
         ),                                                                                               // opt/repo-sftp-known-host
     ),                                                                                                   // opt/repo-sftp-known-host
     // -----------------------------------------------------------------------------------------------------------------------------
+    PARSE_RULE_OPTION                                                                                // opt/repo-sftp-identity-agent
+    (                                                                                                // opt/repo-sftp-identity-agent
+        PARSE_RULE_OPTION_NAME("repo-sftp-identity-agent"),                                          // opt/repo-sftp-identity-agent
+        PARSE_RULE_OPTION_TYPE(cfgOptTypeString),                                                    // opt/repo-sftp-identity-agent
+        PARSE_RULE_OPTION_RESET(true),                                                               // opt/repo-sftp-identity-agent
+        PARSE_RULE_OPTION_REQUIRED(false),                                                           // opt/repo-sftp-identity-agent
+        PARSE_RULE_OPTION_SECTION(cfgSectionGlobal),                                                 // opt/repo-sftp-identity-agent
+        PARSE_RULE_OPTION_GROUP_MEMBER(true),                                                        // opt/repo-sftp-identity-agent
+        PARSE_RULE_OPTION_GROUP_ID(cfgOptGrpRepo),                                                   // opt/repo-sftp-identity-agent
+                                                                                                     // opt/repo-sftp-identity-agent
+        PARSE_RULE_OPTION_COMMAND_ROLE_MAIN_VALID_LIST                                               // opt/repo-sftp-identity-agent
+        (                                                                                            // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdAnnotate)                                                // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdArchiveGet)                                              // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdArchivePush)                                             // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdBackup)                                                  // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdCheck)                                                   // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdExpire)                                                  // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdInfo)                                                    // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdManifest)                                                // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdRepoCreate)                                              // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdRepoGet)                                                 // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdRepoLs)                                                  // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdRepoPut)                                                 // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdRepoRm)                                                  // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdRestore)                                                 // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdStanzaCreate)                                            // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdStanzaDelete)                                            // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdStanzaUpgrade)                                           // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdVerify)                                                  // opt/repo-sftp-identity-agent
+        ),                                                                                           // opt/repo-sftp-identity-agent
+                                                                                                     // opt/repo-sftp-identity-agent
+        PARSE_RULE_OPTION_COMMAND_ROLE_ASYNC_VALID_LIST                                              // opt/repo-sftp-identity-agent
+        (                                                                                            // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdArchiveGet)                                              // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdArchivePush)                                             // opt/repo-sftp-identity-agent
+        ),                                                                                           // opt/repo-sftp-identity-agent
+                                                                                                     // opt/repo-sftp-identity-agent
+        PARSE_RULE_OPTION_COMMAND_ROLE_LOCAL_VALID_LIST                                              // opt/repo-sftp-identity-agent
+        (                                                                                            // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdArchiveGet)                                              // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdArchivePush)                                             // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdBackup)                                                  // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdRestore)                                                 // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdVerify)                                                  // opt/repo-sftp-identity-agent
+        ),                                                                                           // opt/repo-sftp-identity-agent
+                                                                                                     // opt/repo-sftp-identity-agent
+        PARSE_RULE_OPTION_COMMAND_ROLE_REMOTE_VALID_LIST                                             // opt/repo-sftp-identity-agent
+        (                                                                                            // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdAnnotate)                                                // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdArchiveGet)                                              // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdArchivePush)                                             // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdCheck)                                                   // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdInfo)                                                    // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdManifest)                                                // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdRepoCreate)                                              // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdRepoGet)                                                 // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdRepoLs)                                                  // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdRepoPut)                                                 // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdRepoRm)                                                  // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdRestore)                                                 // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdStanzaCreate)                                            // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdStanzaDelete)                                            // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdStanzaUpgrade)                                           // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTION_COMMAND(cfgCmdVerify)                                                  // opt/repo-sftp-identity-agent
+        ),                                                                                           // opt/repo-sftp-identity-agent
+                                                                                                     // opt/repo-sftp-identity-agent
+        PARSE_RULE_OPTIONAL                                                                          // opt/repo-sftp-identity-agent
+        (                                                                                            // opt/repo-sftp-identity-agent
+            PARSE_RULE_OPTIONAL_GROUP                                                                // opt/repo-sftp-identity-agent
+            (                                                                                        // opt/repo-sftp-identity-agent
+                PARSE_RULE_OPTIONAL_DEPEND                                                           // opt/repo-sftp-identity-agent
+                (                                                                                    // opt/repo-sftp-identity-agent
+                    PARSE_RULE_VAL_OPT(cfgOptRepoType),                                              // opt/repo-sftp-identity-agent
+                    PARSE_RULE_VAL_STRID(parseRuleValStrIdSftp),                                     // opt/repo-sftp-identity-agent
+                ),                                                                                   // opt/repo-sftp-identity-agent
+                                                                                                     // opt/repo-sftp-identity-agent
+                PARSE_RULE_OPTIONAL_DEFAULT                                                          // opt/repo-sftp-identity-agent
+                (                                                                                    // opt/repo-sftp-identity-agent
+                    PARSE_RULE_VAL_STR(parseRuleValStrQT_none_QT),                                   // opt/repo-sftp-identity-agent
+                ),                                                                                   // opt/repo-sftp-identity-agent
+            ),                                                                                       // opt/repo-sftp-identity-agent
+        ),                                                                                           // opt/repo-sftp-identity-agent
+    ),                                                                                               // opt/repo-sftp-identity-agent
+    // -----------------------------------------------------------------------------------------------------------------------------
     PARSE_RULE_OPTION                                                                              // opt/repo-sftp-private-key-file
     (                                                                                              // opt/repo-sftp-private-key-file
         PARSE_RULE_OPTION_NAME("repo-sftp-private-key-file"),                                      // opt/repo-sftp-private-key-file
         PARSE_RULE_OPTION_TYPE(cfgOptTypeString),                                                  // opt/repo-sftp-private-key-file
         PARSE_RULE_OPTION_RESET(true),                                                             // opt/repo-sftp-private-key-file
-        PARSE_RULE_OPTION_REQUIRED(true),                                                          // opt/repo-sftp-private-key-file
+        PARSE_RULE_OPTION_REQUIRED(false),                                                         // opt/repo-sftp-private-key-file
         PARSE_RULE_OPTION_SECTION(cfgSectionGlobal),                                               // opt/repo-sftp-private-key-file
         PARSE_RULE_OPTION_GROUP_MEMBER(true),                                                      // opt/repo-sftp-private-key-file
         PARSE_RULE_OPTION_GROUP_ID(cfgOptGrpRepo),                                                 // opt/repo-sftp-private-key-file
@@ -10984,6 +11069,7 @@ static const uint8_t optionResolveOrder[] =
     cfgOptRepoSftpHostKeyHashType,                                                                              // opt-resolve-order
     cfgOptRepoSftpHostPort,                                                                                     // opt-resolve-order
     cfgOptRepoSftpHostUser,                                                                                     // opt-resolve-order
+    cfgOptRepoSftpIdentityAgent,                                                                                // opt-resolve-order
     cfgOptRepoSftpKnownHost,                                                                                    // opt-resolve-order
     cfgOptRepoSftpPrivateKeyFile,                                                                               // opt-resolve-order
     cfgOptRepoSftpPrivateKeyPassphrase,                                                                         // opt-resolve-order
