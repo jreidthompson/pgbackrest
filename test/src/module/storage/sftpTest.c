@@ -301,6 +301,305 @@ testRun(void)
             {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
             {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_AGENT_INIT, .resultNull = true},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1),
+            ServiceError,
+            "failure initializing ssh-agent support");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("libssh2_agent_connect failure");
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_AGENT_INIT},
+            {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = -1},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1),
+            ServiceError,
+            "failure connecting to ssh-agent [-1]");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("libssh2_agent_list_identities failure");
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_AGENT_INIT},
+            {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_LIST_IDENTITIES, .resultInt = -1},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1),
+            ServiceError,
+            "failure requesting identities to ssh-agent [-1]");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("libssh2_agent_get_identity failure");
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_AGENT_INIT},
+            {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_LIST_IDENTITIES, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_GET_IDENTITY, .resultInt = -1},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1),
+            ServiceError,
+            "failure obtaining identity from ssh-agent [-1]");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("libssh2_agent_userauth failure");
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_AGENT_INIT},
+            {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_LIST_IDENTITIES, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_GET_IDENTITY, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_USERAUTH, .resultInt = -1},
+            {.function = HRNLIBSSH2_AGENT_GET_IDENTITY, .resultInt = 1}, // 1 == reached the end of public keys list
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1),
+            ServiceError,
+            "ssh-agent authentication failure [1]");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("libssh2_agent_userauth success - libssh2_agent_disconnect failure in free resources");
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_AGENT_INIT},
+            {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_LIST_IDENTITIES, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_GET_IDENTITY, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_USERAUTH, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SFTP_INIT},
+            {.function = HRNLIBSSH2_SFTP_SHUTDOWN, .resultInt = 0},
+            {.function = HRNLIBSSH2_AGENT_DISCONNECT, .resultInt = -1},
+            {.function = NULL}
+        });
+        Storage *storageTest = NULL;
+
+        TEST_ASSIGN(
+            storageTest,
+            storageSftpNewP(
+                STRDEF("/tmp"), STRDEF("localhost"), 22, TEST_USER_STR, 5, NULL, hashTypeSha1),
+            "new storage (defaults)");
+        TEST_ERROR_FMT(
+            memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest))),
+            ServiceError,
+            "failed to disconnect libssh2 ssh2 agent: libssh2 errno [-1]");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("libssh2_agent_userauth success");
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_AGENT_INIT},
+            {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_LIST_IDENTITIES, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_GET_IDENTITY, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_USERAUTH, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SFTP_INIT},
+            {.function = HRNLIBSSH2_SFTP_SHUTDOWN, .resultInt = 0},
+            {.function = HRNLIBSSH2_AGENT_DISCONNECT, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_FREE},
+            {.function = HRNLIBSSH2_SESSION_DISCONNECT_EX, .param = "[11,\"pgbackrest instance shutdown\",\"\"]", .resultInt = 0},
+            {.function = HRNLIBSSH2_SESSION_FREE, .resultInt = 0},
+            {.function = NULL}
+        });
+
+        storageTest = NULL;
+
+        TEST_ASSIGN(
+            storageTest,
+            storageSftpNewP(
+                STRDEF("/tmp"), STRDEF("localhost"), 22, TEST_USER_STR, 5, NULL, hashTypeSha1),
+            "new storage (defaults)");
+
+        memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("libssh2_agent_userauth success - identityAgent populated tilde path");
+
+#if LIBSSH2_VERSION_NUM >= 0x010900
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_AGENT_INIT},
+            {.function = HRNLIBSSH2_AGENT_SET_IDENTITY_PATH},
+            {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_LIST_IDENTITIES, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_GET_IDENTITY, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_USERAUTH, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SFTP_INIT},
+            {.function = HRNLIBSSH2_SFTP_SHUTDOWN, .resultInt = 0},
+            {.function = HRNLIBSSH2_AGENT_DISCONNECT, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_FREE},
+            {.function = HRNLIBSSH2_SESSION_DISCONNECT_EX, .param = "[11,\"pgbackrest instance shutdown\",\"\"]", .resultInt = 0},
+            {.function = HRNLIBSSH2_SESSION_FREE, .resultInt = 0},
+            {.function = NULL}
+        });
+
+        storageTest = NULL;
+
+        TEST_ASSIGN(
+            storageTest,
+            storageSftpNewP(
+                STRDEF("/tmp"), STRDEF("localhost"), 22, TEST_USER_STR, 5, NULL, hashTypeSha1,
+                .identityAgent = STRDEF("~/.ssh/myagent")),
+            "new storage (defaults)");
+
+        memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_AGENT_INIT},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                STRDEF("/tmp"), STRDEF("localhost"), 22, TEST_USER_STR, 5, NULL, hashTypeSha1,
+                .identityAgent = STRDEF("~/.ssh/myagent")),
+            ServiceError,
+            "libssh2 version 1.8.0 does not support ssh-agent identity path, requires version 1.9 or greater");
+#endif
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("libssh2_agent_userauth success - identityAgent populated full path");
+
+#if LIBSSH2_VERSION_NUM >= 0x010900
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_AGENT_INIT},
+            {.function = HRNLIBSSH2_AGENT_SET_IDENTITY_PATH},
+            {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_LIST_IDENTITIES, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_GET_IDENTITY, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_USERAUTH, .resultInt = LIBSSH2_ERROR_EAGAIN},
+            {.function = HRNLIBSSH2_SESSION_BLOCK_DIRECTIONS, .resultInt = SSH2_BLOCK_READING},
+            {.function = HRNLIBSSH2_AGENT_USERAUTH, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SFTP_INIT},
+            {.function = HRNLIBSSH2_SFTP_SHUTDOWN, .resultInt = 0},
+            {.function = HRNLIBSSH2_AGENT_DISCONNECT, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_FREE},
+            {.function = HRNLIBSSH2_SESSION_DISCONNECT_EX, .param = "[11,\"pgbackrest instance shutdown\",\"\"]", .resultInt = 0},
+            {.function = HRNLIBSSH2_SESSION_FREE, .resultInt = 0},
+            {.function = NULL}
+        });
+
+        storageTest = NULL;
+
+        TEST_ASSIGN(
+            storageTest,
+            storageSftpNewP(
+                STRDEF("/tmp"), STRDEF("localhost"), 22, TEST_USER_STR, 5, NULL, hashTypeSha1,
+                .identityAgent = STRDEF("/var/lib/postgresql/.ssh/myagent")),
+            "new storage (defaults)");
+
+        memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_AGENT_INIT},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                STRDEF("/tmp"), STRDEF("localhost"), 22, TEST_USER_STR, 5, NULL, hashTypeSha1,
+                .identityAgent = STRDEF("/var/lib/postgresql/.ssh/myagent")),
+            ServiceError,
+            "libssh2 version 1.8.0 does not support ssh-agent identity path, requires version 1.9 or greater");
+#endif
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("libssh2_agent_userauth failure - identityAgent disabled (none) and no private key configured");
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1, .identityAgent = STRDEF("none")),
+            ConfigError,
+            "sftp auth --repo-sftp-identity-agent is configured as 'none' (disabled) and --repo-sftp-private-key-file is empty. Ssh"
+            " authorization cannot continue, reconfigure --repo-sftp-identity-agent or --repo-sftp-private-key-file "
+            "appropriately.");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("public key from file auth failure, no public key");
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
             {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
              .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_CSTR "\",\"" KEYPRIV_CSTR "\",null]",
              .resultInt = LIBSSH2_ERROR_ALLOC},
