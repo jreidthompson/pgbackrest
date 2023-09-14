@@ -1359,6 +1359,7 @@ storageSftpNew(
             if ((rc = libssh2_agent_list_identities(this->agent)) != 0)
                 THROW_FMT(ServiceError, "failure requesting identities to ssh-agent [%d]", rc);
 
+            // Loop through the identities and attempt to authenticate with each
             struct libssh2_agent_publickey *identity, *prev_identity = NULL;
 
             for (;;)
