@@ -1424,7 +1424,6 @@ storageSftpNew(
             if (this->agent == NULL)
             {
                 rc = libssh2_session_last_error(this->session, &ssh2ErrMsg, &ssh2ErrMsgLen, 0);
-
                 THROW_FMT(ServiceError, "failure initializing ssh-agent support [%d]: %s", rc, ssh2ErrMsg);
             }
 

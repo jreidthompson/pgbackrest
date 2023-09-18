@@ -134,8 +134,11 @@ typedef struct HrnLibSsh2
     const String *readBuffer;                                       // what to copy into read buffer
     const char *identity_agent;                                     // libssh2 identity agent path
     TimeMSec sleep;                                                 // Sleep specified milliseconds before returning from function
+<<<<<<< HEAD
     size_t len;                                                     // libssh2_session_hostkey len
     int type;                                                       // libssh2_session_hostkey type
+=======
+>>>>>>> 90d29d502 (Account for older libssh2 versions inability to set identity agent path)
     char *errMsg;                                                   // libssh2_session_last_error error msg
 } HrnLibSsh2;
 

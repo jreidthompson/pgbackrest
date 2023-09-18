@@ -302,6 +302,8 @@ testRun(void)
             {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
             {.function = HRNLIBSSH2_AGENT_INIT, .resultNull = true},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"Unable to allocate space for agent connection",
+             .resultInt = LIBSSH2_ERROR_ALLOC},
             {.function = NULL}
         });
 
@@ -309,7 +311,7 @@ testRun(void)
             storageSftpNewP(
                 TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1),
             ServiceError,
-            "failure initializing ssh-agent support");
+            "failure initializing ssh-agent support [-6]: Unable to allocate space for agent connection");
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("libssh2_agent_connect failure");
@@ -321,7 +323,12 @@ testRun(void)
             {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
             {.function = HRNLIBSSH2_AGENT_INIT},
-            {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = -1},
+            {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_BAD_USE},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"no auth sock variable",
+             .resultInt = LIBSSH2_ERROR_BAD_USE},
+#if LIBSSH2_VERSION_NUM >= 0x010900
+            {.function = HRNLIBSSH2_AGENT_GET_IDENTITY_PATH},
+#endif
             {.function = NULL}
         });
 
@@ -329,7 +336,42 @@ testRun(void)
             storageSftpNewP(
                 TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1),
             ServiceError,
-            "failure connecting to ssh-agent [-1]");
+            "failure connecting to ssh-agent [-39]: no auth sock variable");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("libssh2_agent_connect failure - non default agent");
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_AGENT_INIT},
+#if LIBSSH2_VERSION_NUM >= 0x010900
+            {.function = HRNLIBSSH2_AGENT_SET_IDENTITY_PATH},
+            {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_AGENT_PROTOCOL},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"failed connecting with agent",
+             .resultInt = LIBSSH2_ERROR_AGENT_PROTOCOL},
+            {.function = HRNLIBSSH2_AGENT_GET_IDENTITY_PATH, .identity_agent = (char *)"/tmp/pgbackrest-ssh-agent"},
+#endif
+            {.function = NULL}
+        });
+#if LIBSSH2_VERSION_NUM >= 0x010900
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1,
+                .identityAgent = STRDEF("/tmp/pgbackrest-ssh-agent")),
+            ServiceError,
+            "failure connecting to ssh-agent '/tmp/pgbackrest-ssh-agent' [-42]: failed connecting with agent");
+#else
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1,
+                .identityAgent = STRDEF("/tmp/pgbackrest-ssh-agent")),
+            ServiceError,
+            "libssh2 version 1.8.0 does not support ssh-agent identity path, requires version 1.9 or greater");
+#endif
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("libssh2_agent_list_identities failure");
