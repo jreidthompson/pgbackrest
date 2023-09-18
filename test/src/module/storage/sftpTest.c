@@ -362,7 +362,7 @@ testRun(void)
                 TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1,
                 .identityAgent = STRDEF("/tmp/pgbackrest-ssh-agent")),
             ServiceError,
-            "libssh2 version 1.8.0 does not support ssh-agent identity path, requires version 1.9 or greater");
+            "libssh2 version " LIBSSH2_VERSION " does not support ssh-agent identity path, requires version 1.9 or greater");
 #endif
 
         // -------------------------------------------------------------------------------------------------------------------------
@@ -547,7 +547,7 @@ testRun(void)
                 STRDEF("/tmp"), STRDEF("localhost"), 22, TEST_USER_STR, 5, NULL, hashTypeSha1,
                 .identityAgent = STRDEF("~/.ssh/myagent")),
             ServiceError,
-            "libssh2 version 1.8.0 does not support ssh-agent identity path, requires version 1.9 or greater");
+            "libssh2 version " LIBSSH2_VERSION " does not support ssh-agent identity path, requires version 1.9 or greater");
 #endif
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("libssh2_agent_userauth success - identityAgent populated full path");
@@ -602,7 +602,7 @@ testRun(void)
                 STRDEF("/tmp"), STRDEF("localhost"), 22, TEST_USER_STR, 5, NULL, hashTypeSha1,
                 .identityAgent = STRDEF("/var/lib/postgresql/.ssh/myagent")),
             ServiceError,
-            "libssh2 version 1.8.0 does not support ssh-agent identity path, requires version 1.9 or greater");
+            "libssh2 version " LIBSSH2_VERSION " does not support ssh-agent identity path, requires version 1.9 or greater");
 #endif
 
         // -------------------------------------------------------------------------------------------------------------------------
