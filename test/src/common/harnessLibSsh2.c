@@ -216,6 +216,17 @@ libssh2_agent_get_identity(LIBSSH2_AGENT *agent, struct libssh2_agent_publickey 
 }
 
 /***********************************************************************************************************************************
+Shim for libssh2_agent_get_identity_path
+***********************************************************************************************************************************/
+const char *
+libssh2_agent_get_identity_path(LIBSSH2_AGENT *agent)
+{
+    HrnLibSsh2 *hrnLibSsh2 = hrnLibSsh2ScriptRun(HRNLIBSSH2_AGENT_GET_IDENTITY_PATH, NULL, (HrnLibSsh2 *)agent);
+
+    return hrnLibSsh2->identity_agent;
+}
+
+/***********************************************************************************************************************************
 Shim for libssh2_agent_list_identities
 ***********************************************************************************************************************************/
 int

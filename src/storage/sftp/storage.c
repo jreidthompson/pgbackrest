@@ -1333,8 +1333,14 @@ storageSftpNew(
             // Init the libssh2 agent
             this->agent = libssh2_agent_init(this->session);
 
+            char *ssh2ErrMsg;
+            int ssh2ErrMsgLen;
+
             if (this->agent == NULL)
-                THROW_FMT(ServiceError, "failure initializing ssh-agent support");
+            {
+                rc = libssh2_session_last_error(this->session, &ssh2ErrMsg, &ssh2ErrMsgLen, 0);
+                THROW_FMT(ServiceError, "failure initializing ssh-agent support [%d]: %s", rc, ssh2ErrMsg);
+            }
 
             // If a specific ssh agent path has been requested, set it for the agent
             if (param.identityAgent != NULL)
@@ -1354,7 +1360,20 @@ storageSftpNew(
             }
 
             if ((rc = libssh2_agent_connect(this->agent)) != 0)
-                THROW_FMT(ServiceError, "failure connecting to ssh-agent [%d]", rc);
+            {
+                rc = libssh2_session_last_error(this->session, &ssh2ErrMsg, &ssh2ErrMsgLen, 0);
+
+                // Does the version of libssh2 (>= 1.9.0) support the libssh2_agent_get_identity_path function
+#if LIBSSH2_VERSION_NUM >= 0x010900
+                const char *const identity_agent_path = libssh2_agent_get_identity_path(this->agent);
+#else
+                const char *const identity_agent_path = NULL;
+#endif
+                THROW_FMT(
+                    ServiceError,
+                    "failure connecting to ssh-agent %s[%d]%s",
+                    identity_agent_path == NULL ? "" : zNewFmt("'%s' ", identity_agent_path) , rc, zNewFmt(": %s", ssh2ErrMsg));
+            }
 
             if ((rc = libssh2_agent_list_identities(this->agent)) != 0)
                 THROW_FMT(ServiceError, "failure requesting identities to ssh-agent [%d]", rc);

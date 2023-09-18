@@ -8568,11 +8568,6 @@ static const ParseRuleOption parseRuleOption[CFG_OPTION_TOTAL] =
                     PARSE_RULE_VAL_OPT(cfgOptRepoType),                                              // opt/repo-sftp-identity-agent
                     PARSE_RULE_VAL_STRID(parseRuleValStrIdSftp),                                     // opt/repo-sftp-identity-agent
                 ),                                                                                   // opt/repo-sftp-identity-agent
-                                                                                                     // opt/repo-sftp-identity-agent
-                PARSE_RULE_OPTIONAL_DEFAULT                                                          // opt/repo-sftp-identity-agent
-                (                                                                                    // opt/repo-sftp-identity-agent
-                    PARSE_RULE_VAL_STR(parseRuleValStrQT_none_QT),                                   // opt/repo-sftp-identity-agent
-                ),                                                                                   // opt/repo-sftp-identity-agent
             ),                                                                                       // opt/repo-sftp-identity-agent
         ),                                                                                           // opt/repo-sftp-identity-agent
     ),                                                                                               // opt/repo-sftp-identity-agent

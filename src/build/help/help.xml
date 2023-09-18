@@ -1140,7 +1140,6 @@
                         <text> <p>Specifies the UNIX-domain socket used to communicate with the authentication agent. This option overrides the SSH_AUTH_SOCK environment variable and can be used to select a specific agent.  Setting the socket name to <quote>none</quote> disables the use of an authentication agent. Arguments to <setting>repo-sftp-identity-agent</setting> may use the tilde syntax to refer to a user's home directory. This option is not valid for versions of libssh2 prior to 1.9</p>
                         </text>
 
-                        <default>none</default>
                         <example>/var/lib/postgresql/.ssh/.pgbackrest_ssh_identity_agent_socket</example>
                     </config-key>
 
