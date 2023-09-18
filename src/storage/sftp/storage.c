@@ -1455,9 +1455,9 @@ storageSftpNew(
             {
                 THROW_FMT(
                     ConfigError,
-                    "sftp auth --repo-sftp-identity-agent is configured as 'none' (disabled) and --repo-sftp-private-key-file is "
-                    "empty. Ssh authorization cannot continue, reconfigure --repo-sftp-identity-agent or "
-                    "--repo-sftp-private-key-file appropriately.");
+                    "ssh authorization cannot continue, --repo-sftp-identity-agent is configured as 'none' (disabled) and "
+                    "--repo-sftp-private-key-file is not specified.\n HINT: configure --repo-sftp-identity-agent with an agent path"
+                    " or --repo-sftp-private-key-file with a key file path.");
             }
         }
 

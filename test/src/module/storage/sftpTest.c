@@ -621,9 +621,9 @@ testRun(void)
             storageSftpNewP(
                 TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1, .identityAgent = STRDEF("none")),
             ConfigError,
-            "sftp auth --repo-sftp-identity-agent is configured as 'none' (disabled) and --repo-sftp-private-key-file is empty. Ssh"
-            " authorization cannot continue, reconfigure --repo-sftp-identity-agent or --repo-sftp-private-key-file "
-            "appropriately.");
+            "ssh authorization cannot continue, --repo-sftp-identity-agent is configured as 'none' (disabled) and "
+            "--repo-sftp-private-key-file is not specified.\n HINT: configure --repo-sftp-identity-agent with an agent path or "
+            "--repo-sftp-private-key-file with a key file path.");
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("public key from file auth failure, no public key");
