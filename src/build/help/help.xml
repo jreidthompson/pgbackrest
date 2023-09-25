@@ -1194,7 +1194,7 @@
                         </text>
 
                         <default>yes</default>
-                        <example>no</example>
+                        <example>n</example>
 
                     </config-key>
 
