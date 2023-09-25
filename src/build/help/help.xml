@@ -1193,7 +1193,7 @@
                             <p>When enabled, if not already authenticated via a private key file, an attempt will be made to authenticate via ssh-agent.</p>
                         </text>
 
-                        <default>yes</default>
+                        <default>y</default>
                         <example>n</example>
 
                     </config-key>
