@@ -638,6 +638,40 @@ storageSftpIdentityFilesList(const StringList *const privKeys)
     FUNCTION_LOG_RETURN(STRING_LIST, result);
 }
 
+/***********************************************************************************************************************************
+Expand any leading tilde filepaths in a path list. If a path is not a leading tilde path it is returned as is.
+***********************************************************************************************************************************/
+static StringList *
+storageSftpExpandFilePaths(const StringList *const pathList)
+{
+    FUNCTION_LOG_BEGIN(logLevelDebug);
+        FUNCTION_LOG_PARAM(STRING_LIST, pathList);
+    FUNCTION_LOG_END();
+
+    StringList *const result = strLstNew();
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        // Process the list entries and add them to the result list
+        for (unsigned int listIdx = 0; listIdx < strLstSize(pathList); listIdx++)
+        {
+            // Get the trimmed file path and add it to the result list
+            const String *const filePath = strTrim(strLstGet(pathList, listIdx));
+
+            if (strBeginsWithZ(filePath, "~/"))
+            {
+                // Expand leading tilde and add to the result list
+                strLstAddFmt(result, "%s", strZ(storageSftpExpandTildePath(filePath)));
+            }
+            else
+                strLstAdd(result, filePath);
+        }
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    FUNCTION_LOG_RETURN(STRING_LIST, result);
+}
+
 /**********************************************************************************************************************************/
 // Helper function to get info for a file if it exists. This logic can't live directly in storageSftpList() because there is a race
 // condition where a file might exist while listing the directory but it is gone before stat() can be called. In order to get

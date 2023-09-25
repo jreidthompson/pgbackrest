@@ -309,7 +309,16 @@ testRun(void)
 
         TEST_ERROR(
             storageSftpNewP(
-                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1),
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpPrivateKeyFile, repoIdx)),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx)),
+                .useSshAgent = cfgOptionIdxBool(cfgOptRepoSftpUseSshAgent, repoIdx)),
             ServiceError,
             "failure initializing ssh-agent support [-6]: Unable to allocate space for agent connection");
 
@@ -326,15 +335,21 @@ testRun(void)
             {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_BAD_USE},
             {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"no auth sock variable",
              .resultInt = LIBSSH2_ERROR_BAD_USE},
-#if LIBSSH2_VERSION_NUM >= 0x010900
-            {.function = HRNLIBSSH2_AGENT_GET_IDENTITY_PATH},
-#endif
             {.function = NULL}
         });
 
         TEST_ERROR(
             storageSftpNewP(
-                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1),
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpPrivateKeyFile, repoIdx)),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx)),
+                .useSshAgent = cfgOptionIdxBool(cfgOptRepoSftpUseSshAgent, repoIdx)),
             ServiceError,
             "failure connecting to ssh-agent [-39]: no auth sock variable");
 
@@ -353,26 +368,57 @@ testRun(void)
             {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_AGENT_PROTOCOL},
             {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"failed connecting with agent",
              .resultInt = LIBSSH2_ERROR_AGENT_PROTOCOL},
-            {.function = HRNLIBSSH2_AGENT_GET_IDENTITY_PATH, .identity_agent = (char *)"/tmp/pgbackrest-ssh-agent"},
 #endif
             {.function = NULL}
         });
+
+        // Load configuration
+        argList = strLstNew();
+        hrnCfgArgRawZ(argList, cfgOptStanza, "test");
+        hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
+        hrnCfgArgRawZ(argList, cfgOptRepo, "1");
+        hrnCfgArgRawZ(argList, cfgOptRepoPath, TEST_PATH);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
+        hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "localhost");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "fingerprint");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostFingerprint, "3132333435363738393039383736353433323130");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpIdentityAgent, "/tmp/pgbackrest-ssh-agent");
+        HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 #if LIBSSH2_VERSION_NUM >= 0x010900
         TEST_ERROR(
             storageSftpNewP(
-                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1,
-                .identityAgent = STRDEF("/tmp/pgbackrest-ssh-agent")),
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpPrivateKeyFile, repoIdx)),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .identityAgent = cfgOptionIdxStrNull(cfgOptRepoSftpIdentityAgent, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx)),
+                .useSshAgent = cfgOptionIdxBool(cfgOptRepoSftpUseSshAgent, repoIdx)),
             ServiceError,
             "failure connecting to ssh-agent '/tmp/pgbackrest-ssh-agent' [-42]: failed connecting with agent");
 #else
         TEST_ERROR(
             storageSftpNewP(
-                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1,
-                .identityAgent = STRDEF("/tmp/pgbackrest-ssh-agent")),
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpPrivateKeyFile, repoIdx)),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .identityAgent = cfgOptionIdxStrNull(cfgOptRepoSftpIdentityAgent, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx)),
+                .useSshAgent = cfgOptionIdxBool(cfgOptRepoSftpUseSshAgent, repoIdx)),
             ServiceError,
             "libssh2 version 1.8.0 does not support ssh-agent identity path, requires version 1.9 or greater");
 #endif
-
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("libssh2_agent_list_identities failure");
 
@@ -388,9 +434,34 @@ testRun(void)
             {.function = NULL}
         });
 
+        // Load configuration
+        argList = strLstNew();
+        hrnCfgArgRawZ(argList, cfgOptStanza, "test");
+        hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
+        hrnCfgArgRawZ(argList, cfgOptRepo, "1");
+        hrnCfgArgRawZ(argList, cfgOptRepoPath, TEST_PATH);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
+        hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "localhost");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "fingerprint");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostFingerprint, "3132333435363738393039383736353433323130");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpUseSshAgent, "y");
+        HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
+
         TEST_ERROR(
             storageSftpNewP(
-                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1),
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpPrivateKeyFile, repoIdx)),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .identityAgent = cfgOptionIdxStrNull(cfgOptRepoSftpIdentityAgent, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx)),
+                .useSshAgent = cfgOptionIdxBool(cfgOptRepoSftpUseSshAgent, repoIdx)),
             ServiceError,
             "failure requesting identities to ssh-agent [-1]");
 
@@ -412,7 +483,17 @@ testRun(void)
 
         TEST_ERROR(
             storageSftpNewP(
-                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1),
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpPrivateKeyFile, repoIdx)),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx)),
+                .identityAgent = cfgOptionIdxStrNull(cfgOptRepoSftpIdentityAgent, repoIdx),
+                .useSshAgent = cfgOptionIdxBool(cfgOptRepoSftpUseSshAgent, repoIdx)),
             ServiceError,
             "failure obtaining identity from ssh-agent [-1]");
 
@@ -429,16 +510,27 @@ testRun(void)
             {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_AGENT_LIST_IDENTITIES, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_AGENT_GET_IDENTITY, .resultInt = LIBSSH2_ERROR_NONE},
-            {.function = HRNLIBSSH2_AGENT_USERAUTH, .resultInt = -1},
-            {.function = HRNLIBSSH2_AGENT_GET_IDENTITY, .resultInt = 1}, // 1 == reached the end of public keys list
+            {.function = HRNLIBSSH2_AGENT_USERAUTH, .resultInt = LIBSSH2_ERROR_PUBLICKEY_UNVERIFIED},
+            {.function = HRNLIBSSH2_AGENT_GET_IDENTITY, .resultInt = 1},
+            {.function = HRNLIBSSH2_SFTP_LAST_ERROR, .resultUInt = LIBSSH2_FX_OK},
             {.function = NULL}
         });
 
         TEST_ERROR(
             storageSftpNewP(
-                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 1000, NULL, hashTypeSha1),
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpPrivateKeyFile, repoIdx)),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx)),
+                .identityAgent = cfgOptionIdxStrNull(cfgOptRepoSftpIdentityAgent, repoIdx),
+                .useSshAgent = cfgOptionIdxBool(cfgOptRepoSftpUseSshAgent, repoIdx)),
             ServiceError,
-            "ssh-agent authentication failure [1]");
+            "ssh authentication failed, reached end of public keys: libssh2 error [1]");
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("libssh2_agent_userauth success - libssh2_agent_disconnect failure in free resources");
@@ -464,7 +556,17 @@ testRun(void)
         TEST_ASSIGN(
             storageTest,
             storageSftpNewP(
-                STRDEF("/tmp"), STRDEF("localhost"), 22, TEST_USER_STR, 5, NULL, hashTypeSha1),
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpPrivateKeyFile, repoIdx)),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx)),
+                .identityAgent = cfgOptionIdxStrNull(cfgOptRepoSftpIdentityAgent, repoIdx),
+                .useSshAgent = cfgOptionIdxBool(cfgOptRepoSftpUseSshAgent, repoIdx)),
             "new storage (defaults)");
         TEST_ERROR_FMT(
             memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest))),
@@ -499,13 +601,38 @@ testRun(void)
         TEST_ASSIGN(
             storageTest,
             storageSftpNewP(
-                STRDEF("/tmp"), STRDEF("localhost"), 22, TEST_USER_STR, 5, NULL, hashTypeSha1),
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpPrivateKeyFile, repoIdx)),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx)),
+                .identityAgent = cfgOptionIdxStrNull(cfgOptRepoSftpIdentityAgent, repoIdx),
+                .useSshAgent = cfgOptionIdxBool(cfgOptRepoSftpUseSshAgent, repoIdx)),
             "new storage (defaults)");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("libssh2_agent_userauth success - identityAgent populated tilde path");
+
+        // Load configuration
+        argList = strLstNew();
+        hrnCfgArgRawZ(argList, cfgOptStanza, "test");
+        hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
+        hrnCfgArgRawZ(argList, cfgOptRepo, "1");
+        hrnCfgArgRawZ(argList, cfgOptRepoPath, "/tmp");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
+        hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "localhost");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "fingerprint");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostFingerprint, "3132333435363738393039383736353433323130");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpIdentityAgent, "~/.ssh/myagent");
+        HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
 #if LIBSSH2_VERSION_NUM >= 0x010900
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
@@ -534,8 +661,17 @@ testRun(void)
         TEST_ASSIGN(
             storageTest,
             storageSftpNewP(
-                STRDEF("/tmp"), STRDEF("localhost"), 22, TEST_USER_STR, 5, NULL, hashTypeSha1,
-                .identityAgent = STRDEF("~/.ssh/myagent")),
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpPrivateKeyFile, repoIdx)),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx)),
+                .identityAgent = cfgOptionIdxStrNull(cfgOptRepoSftpIdentityAgent, repoIdx),
+                .useSshAgent = cfgOptionIdxBool(cfgOptRepoSftpUseSshAgent, repoIdx)),
             "new storage (defaults)");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
@@ -552,8 +688,17 @@ testRun(void)
 
         TEST_ERROR(
             storageSftpNewP(
-                STRDEF("/tmp"), STRDEF("localhost"), 22, TEST_USER_STR, 5, NULL, hashTypeSha1,
-                .identityAgent = STRDEF("~/.ssh/myagent")),
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpPrivateKeyFile, repoIdx)),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx)),
+                .identityAgent = cfgOptionIdxStrNull(cfgOptRepoSftpIdentityAgent, repoIdx),
+                .useSshAgent = cfgOptionIdxBool(cfgOptRepoSftpUseSshAgent, repoIdx)),
             ServiceError,
             "libssh2 version 1.8.0 does not support ssh-agent identity path, requires version 1.9 or greater");
 #endif
@@ -1202,7 +1347,6 @@ testRun(void)
             ServiceError,
             "libssh2 version " LIBSSH2_VERSION " does not support ssh-agent identity path, requires version 1.9 or greater");
 #endif
-
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("known host init failure");
 
@@ -1493,6 +1637,7 @@ testRun(void)
             {.function = NULL}
         });
 
+        // Load configuration
         argList = strLstNew();
         hrnCfgArgRawZ(argList, cfgOptStanza, "test");
         hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
@@ -1541,24 +1686,8 @@ testRun(void)
             // storageSftpWaitFd returns false
             {.function = HRNLIBSSH2_SESSION_LAST_ERRNO, .resultInt = LIBSSH2_ERROR_SOCKET_SEND},
             {.function = HRNLIBSSH2_SESSION_LAST_ERRNO, .resultInt = LIBSSH2_ERROR_SOCKET_SEND},
-            {.function = HRNLIBSSH2_SFTP_LAST_ERROR, .resultUInt = LIBSSH2_ERROR_NONE},
             {.function = NULL}
         });
-
-        // Load configuration
-        argList = strLstNew();
-        hrnCfgArgRawZ(argList, cfgOptStanza, "test");
-        hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
-        hrnCfgArgRawZ(argList, cfgOptRepo, "1");
-        hrnCfgArgRawZ(argList, cfgOptRepoPath, TEST_PATH);
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
-        hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "localhost");
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpKnownHost, KNOWNHOSTS_FILE_CSTR);
-        HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
         TEST_ERROR(
             storageSftpNewP(
