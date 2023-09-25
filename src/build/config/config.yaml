@@ -2447,7 +2447,7 @@ option:
   repo-sftp-private-key-file:
     section: global
     group: repo
-    type: string
+    type: list
     required: false
     command: repo-type
     depend: repo-sftp-host
@@ -2466,6 +2466,14 @@ option:
     group: repo
     type: string
     required: false
+    command: repo-type
+    depend: repo-sftp-host
+
+  repo-sftp-use-ssh-agent:
+    section: global
+    group: repo
+    type: boolean
+    default: true
     command: repo-type
     depend: repo-sftp-host
 

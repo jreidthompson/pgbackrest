@@ -607,6 +607,40 @@ storageSftpExpandTildePath(const String *const tildePath)
     FUNCTION_TEST_RETURN(STRING, result);
 }
 
+/***********************************************************************************************************************************
+Expand any leading tilde filepaths in a path list. If a path is not a leading tilde path it is returned as is.
+***********************************************************************************************************************************/
+static StringList *
+storageSftpExpandFilePaths(const StringList *const pathList)
+{
+    FUNCTION_LOG_BEGIN(logLevelDebug);
+        FUNCTION_LOG_PARAM(STRING_LIST, pathList);
+    FUNCTION_LOG_END();
+
+    StringList *const result = strLstNew();
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        // Process the list entries and add them to the result list
+        for (unsigned int listIdx = 0; listIdx < strLstSize(pathList); listIdx++)
+        {
+            // Get the trimmed file path and add it to the result list
+            const String *const filePath = strTrim(strLstGet(pathList, listIdx));
+
+            if (strBeginsWithZ(filePath, "~/"))
+            {
+                // Expand leading tilde and add to the result list
+                strLstAddFmt(result, "%s", strZ(storageSftpExpandTildePath(filePath)));
+            }
+            else
+                strLstAdd(result, filePath);
+        }
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    FUNCTION_LOG_RETURN(STRING_LIST, result);
+}
+
 /**********************************************************************************************************************************/
 // Helper function to get info for a file if it exists. This logic can't live directly in storageSftpList() because there is a race
 // condition where a file might exist while listing the directory but it is gone before stat() can be called. In order to get
@@ -1093,7 +1127,7 @@ static const StorageInterface storageInterfaceSftp =
 FN_EXTERN Storage *
 storageSftpNew(
     const String *const path, const String *const host, const unsigned int port, const String *const user,
-    const TimeMSec timeout, const String *const keyPriv, const StringId hostKeyHashType, const StorageSftpNewParam param)
+    const TimeMSec timeout, const StringList *const privKeys, const StringId hostKeyHashType, const StorageSftpNewParam param)
 {
     FUNCTION_LOG_BEGIN(logLevelDebug);
         FUNCTION_LOG_PARAM(STRING, path);
@@ -1101,7 +1135,7 @@ storageSftpNew(
         FUNCTION_LOG_PARAM(UINT, port);
         FUNCTION_LOG_PARAM(STRING, user);
         FUNCTION_LOG_PARAM(TIME_MSEC, timeout);
-        FUNCTION_LOG_PARAM(STRING, keyPriv);
+        FUNCTION_LOG_PARAM(STRING_LIST, privKeys);
         FUNCTION_LOG_PARAM(STRING_ID, hostKeyHashType);
         FUNCTION_LOG_PARAM(STRING, param.hostFingerprint);
         FUNCTION_LOG_PARAM(STRING_ID, param.hostKeyCheckType);
@@ -1112,6 +1146,7 @@ storageSftpNew(
         FUNCTION_LOG_PARAM(MODE, param.modeFile);
         FUNCTION_LOG_PARAM(MODE, param.modePath);
         FUNCTION_LOG_PARAM(FUNCTIONP, param.pathExpressionFunction);
+        FUNCTION_LOG_PARAM(BOOL, param.useSshAgent);
         FUNCTION_LOG_PARAM(BOOL, param.write);
     FUNCTION_LOG_END();
 
@@ -1327,8 +1362,57 @@ storageSftpNew(
             libssh2_knownhost_free(knownHostsList);
         }
 
-        // Authenticate via ssh agent if no private key is provided and ssh agent is not explicitely disabled
-        if (keyPriv == NULL && (param.identityAgent == NULL || !strEqZ(strLower(strTrim(strDup(param.identityAgent))), "none")))
+        // Attempt to authenticate with any provided private keys
+        bool authSuccess = false;
+
+        if (!strLstEmpty(privKeys))
+        {
+            // Normalize private keys to absolute paths
+            StringList *const privateKeys = storageSftpExpandFilePaths(privKeys);
+
+            // If provided a public key normalize it if necessary
+            String *const pubKeyPath =
+                param.keyPub != NULL &&
+                regExpMatchOne(STRDEF("^ *~"), param.keyPub) ? storageSftpExpandTildePath(param.keyPub) : strDup(param.keyPub);
+
+            // Attempt to authenticate with each private key
+            for (unsigned int listIdx = 0; listIdx < strLstSize(privateKeys); listIdx++)
+            {
+                const String *const privateKey = strLstGet(privateKeys, listIdx);
+
+                // If a public key has been provided use only that public key, otherwise use the private key with a .pub extension
+                do
+                {
+                    rc = libssh2_userauth_publickey_fromfile(
+                        this->session, strZ(user),
+                        pubKeyPath != NULL ? strZ(pubKeyPath) : strZ(strCatFmt(strNew(),"%s.pub", strZ(privateKey))),
+                        strZ(privateKey), strZNull(param.keyPassphrase));
+                }
+                while (storageSftpWaitFd(this, rc));
+
+                // Log the result of the authentication attempt
+                if (rc != 0)
+                    if (rc == LIBSSH2_ERROR_EAGAIN)
+                        LOG_DETAIL_FMT("timeout during public key authentication");
+                    else
+                        LOG_DETAIL_FMT(
+                            "public key authentication with username %s and key %s failed [%d]", strZ(user), strZ(privateKey), rc);
+                else
+                {
+                    authSuccess = true;
+
+                    LOG_DETAIL_FMT("public key authentication with username %s and key %s succeeded", strZ(user), strZ(privateKey));
+                    break;
+                }
+            }
+
+            // Free the private key list, and the public key path
+            strLstFree(privateKeys);
+            strFree(pubKeyPath);
+        }
+
+        // Attempt to authenticate with agent if not authenticated and agent enabled
+        if (authSuccess == false && param.useSshAgent == true)
         {
             // Init the libssh2 agent
             this->agent = libssh2_agent_init(this->session);
@@ -1359,20 +1443,16 @@ storageSftpNew(
 #endif
             }
 
+            // Attempt to connect to the agent
             if ((rc = libssh2_agent_connect(this->agent)) != 0)
             {
                 rc = libssh2_session_last_error(this->session, &ssh2ErrMsg, &ssh2ErrMsgLen, 0);
 
-                // Does the version of libssh2 (>= 1.9.0) support the libssh2_agent_get_identity_path function
-#if LIBSSH2_VERSION_NUM >= 0x010900
-                const char *const identity_agent_path = libssh2_agent_get_identity_path(this->agent);
-#else
-                const char *const identity_agent_path = NULL;
-#endif
                 THROW_FMT(
                     ServiceError,
                     "failure connecting to ssh-agent %s[%d]%s",
-                    identity_agent_path == NULL ? "" : zNewFmt("'%s' ", identity_agent_path), rc, zNewFmt(": %s", ssh2ErrMsg));
+                    param.identityAgent == NULL ? "" : zNewFmt("'%s' ", strZ(param.identityAgent)), rc,
+                    zNewFmt(": %s", ssh2ErrMsg));
             }
 
             if ((rc = libssh2_agent_list_identities(this->agent)) != 0)
@@ -1405,60 +1485,22 @@ storageSftpNew(
                     LOG_DETAIL_FMT("ssh-agent authentication with username %s failed [%d]", strZ(user), rc);
                 else
                 {
+                    authSuccess = true;
+
                     LOG_DETAIL_FMT("ssh-agent authentication with username %s succeeded", strZ(user));
                     break;
                 }
 
                 prev_identity = identity;
             }
-
-            if (rc != 0)
-                THROW_FMT(ServiceError, "ssh-agent authentication failure [%d]", rc);
         }
-        else
+
+        if (authSuccess == false)
         {
-            if (keyPriv != NULL)
-            {
-                // Perform public key authorization, expand leading tilde key file paths if needed
-                String *const privKeyPath =
-                    regExpMatchOne(STRDEF("^ *~"), keyPriv) ? storageSftpExpandTildePath(keyPriv) : strDup(keyPriv);
-                String *const pubKeyPath =
-                    param.keyPub != NULL && regExpMatchOne(STRDEF("^ *~"), param.keyPub) ?
-                        storageSftpExpandTildePath(param.keyPub) : strDup(param.keyPub);
-
-                do
-                {
-                    rc = libssh2_userauth_publickey_fromfile(
-                        this->session, strZ(user), strZNull(pubKeyPath), strZ(privKeyPath), strZNull(param.keyPassphrase));
-                }
-                while (storageSftpWaitFd(this, rc));
-
-                strFree(privKeyPath);
-                strFree(pubKeyPath);
-
-                if (rc != 0)
-                {
-                    if (rc == LIBSSH2_ERROR_EAGAIN)
-                        THROW_FMT(ServiceError, "timeout during public key authentication");
-
-                    storageSftpEvalLibSsh2Error(
-                        rc, libssh2_sftp_last_error(this->sftpSession), &ServiceError,
-                        STRDEF("public key authentication failed"),
-                        STRDEF(
-                            "HINT: libssh2 compiled against non-openssl libraries requires --repo-sftp-private-key-file and"
-                            " --repo-sftp-public-key-file to be provided\n"
-                            "HINT: libssh2 versions before 1.9.0 expect a PEM format keypair, try ssh-keygen -m PEM -t rsa -P \"\" "
-                            "to generate the keypair"));
-                }
-            }
-            else
-            {
-                THROW_FMT(
-                    ConfigError,
-                    "ssh authorization cannot continue, --repo-sftp-identity-agent is configured as 'none' (disabled) and "
-                    "--repo-sftp-private-key-file is not specified.\n HINT: configure --repo-sftp-identity-agent with an agent path"
-                    " or --repo-sftp-private-key-file with a key file path.");
-            }
+            storageSftpEvalLibSsh2Error(
+                rc, libssh2_sftp_last_error(this->sftpSession), &ServiceError,
+                rc != 1 ? STRDEF("ssh authentication failed") : STRDEF("ssh authentication failed, reached end of public keys"),
+                NULL);
         }
 
         // Init the sftp session
