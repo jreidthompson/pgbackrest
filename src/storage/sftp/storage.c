@@ -1381,9 +1381,9 @@ storageSftpNew(
                 do
                 {
                     rc = libssh2_userauth_publickey_fromfile(
-                            this->session, strZ(user),
-                            pubKeyPath != NULL ? strZ(pubKeyPath) : strZ(strCatFmt(strNew(),"%s.pub", strZ(privateKey))),
-                            strZ(privateKey), strZNull(param.keyPassphrase));
+                        this->session, strZ(user),
+                        pubKeyPath != NULL ? strZ(pubKeyPath) : strZ(strCatFmt(strNew(), "%s.pub", strZ(privateKey))),
+                        strZ(privateKey), strZNull(param.keyPassphrase));
                 }
                 while (storageSftpWaitFd(this, rc));
 
