@@ -774,12 +774,6 @@ testRun(void)
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("libssh2_agent_userauth success - identityAgent populated full path");
 
-        Storage *storageSsh = storagePosixNewP(strNewFmt("%s%s", strZ(userHome()), "/.ssh"), .write = true);
-        HRN_STORAGE_PUT_EMPTY(storageSsh, KEYPRIV_DSA_CSTR);
-        HRN_STORAGE_PUT_EMPTY(storageSsh, KEYPRIV_ECDSA_CSTR);
-        HRN_STORAGE_PUT_EMPTY(storageSsh, KEYPRIV_ECDSA_SK_CSTR);
-        HRN_STORAGE_PUT_EMPTY(storageSsh, KEYPRIV_ED25519_CSTR);
-
         // Load configuration
         argList = strLstNew();
         hrnCfgArgRawZ(argList, cfgOptStanza, "test");
@@ -802,21 +796,6 @@ testRun(void)
             {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
             {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
-            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
-             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_DSA_CSTR "\",\"" KEYPRIV_DSA_CSTR "\",null]",
-             .resultInt = LIBSSH2_ERROR_ALLOC},
-            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
-             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_ECDSA_CSTR "\",\"" KEYPRIV_ECDSA_CSTR "\",null]",
-             .resultInt = LIBSSH2_ERROR_ALLOC},
-            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
-             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_ECDSA_SK_CSTR "\",\"" KEYPRIV_ECDSA_SK_CSTR "\",null]",
-             .resultInt = LIBSSH2_ERROR_ALLOC},
-            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
-             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_ED25519_CSTR "\",\"" KEYPRIV_ED25519_CSTR "\",null]",
-             .resultInt = LIBSSH2_ERROR_ALLOC},
-            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
-             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_CSTR "\",\"" KEYPRIV_CSTR "\",null]",
-             .resultInt = LIBSSH2_ERROR_ALLOC},
             {.function = HRNLIBSSH2_AGENT_INIT},
             {.function = HRNLIBSSH2_AGENT_SET_IDENTITY_PATH},
             {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_NONE},
@@ -860,21 +839,6 @@ testRun(void)
             {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
             {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
-            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
-             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_DSA_CSTR "\",\"" KEYPRIV_DSA_CSTR "\",null]",
-             .resultInt = LIBSSH2_ERROR_ALLOC},
-            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
-             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_ECDSA_CSTR "\",\"" KEYPRIV_ECDSA_CSTR "\",null]",
-             .resultInt = LIBSSH2_ERROR_ALLOC},
-            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
-             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_ECDSA_SK_CSTR "\",\"" KEYPRIV_ECDSA_SK_CSTR "\",null]",
-             .resultInt = LIBSSH2_ERROR_ALLOC},
-            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
-             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_ED25519_CSTR "\",\"" KEYPRIV_ED25519_CSTR "\",null]",
-             .resultInt = LIBSSH2_ERROR_ALLOC},
-            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
-             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_CSTR "\",\"" KEYPRIV_CSTR "\",null]",
-             .resultInt = LIBSSH2_ERROR_ALLOC},
             {.function = HRNLIBSSH2_AGENT_INIT},
             {.function = NULL}
         });
@@ -895,10 +859,6 @@ testRun(void)
             ServiceError,
             "libssh2 version " LIBSSH2_VERSION " does not support ssh-agent identity path, requires version 1.9 or greater");
 #endif
-        HRN_STORAGE_REMOVE(storageSsh, KEYPRIV_DSA_CSTR);
-        HRN_STORAGE_REMOVE(storageSsh, KEYPRIV_ECDSA_CSTR);
-        HRN_STORAGE_REMOVE(storageSsh, KEYPRIV_ECDSA_SK_CSTR);
-        HRN_STORAGE_REMOVE(storageSsh, KEYPRIV_ED25519_CSTR);
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("known host init failure");
