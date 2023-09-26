@@ -623,27 +623,37 @@ storageSftpIdentityFilesList(const StringList *const privKeys)
     {
         if (strLstEmpty(privKeys))
         {
-            // Create default file list
-            strLstAddFmt(result, "%s%s", strZ(userHome()), "/.ssh/id_dsa");
-            strLstAddFmt(result, "%s%s", strZ(userHome()), "/.ssh/id_ecdsa");
-            strLstAddFmt(result, "%s%s", strZ(userHome()), "/.ssh/id_ecdsa_sk");
-            strLstAddFmt(result, "%s%s", strZ(userHome()), "/.ssh/id_ed25519");
-            strLstAddFmt(result, "%s%s", strZ(userHome()), "/.ssh/id_ed25519_sk");
-            strLstAddFmt(result, "%s%s", strZ(userHome()), "/.ssh/id_rsa");
+            // Create default file list, do not include non-existent files, reduces log noise
+            const Storage *const sshStorage =
+                storagePosixNewP(strNewFmt("%s%s", strZ(userHome()), "/.ssh"), .modeFile = 0600, .modePath = 0700);
+
+            StringList *const sshDefaultIdentityFiles = strLstNew();
+            strLstAddFmt(sshDefaultIdentityFiles, "%s%s", strZ(userHome()), "/.ssh/id_dsa");
+            strLstAddFmt(sshDefaultIdentityFiles, "%s%s", strZ(userHome()), "/.ssh/id_ecdsa");
+            strLstAddFmt(sshDefaultIdentityFiles, "%s%s", strZ(userHome()), "/.ssh/id_ecdsa_sk");
+            strLstAddFmt(sshDefaultIdentityFiles, "%s%s", strZ(userHome()), "/.ssh/id_ed25519");
+            strLstAddFmt(sshDefaultIdentityFiles, "%s%s", strZ(userHome()), "/.ssh/id_ed25519_sk");
+            strLstAddFmt(sshDefaultIdentityFiles, "%s%s", strZ(userHome()), "/.ssh/id_rsa");
+
+            for (unsigned int listIdx = 0; listIdx < strLstSize(sshDefaultIdentityFiles); listIdx++)
+            {
+                const String *const filePath = strLstGet(sshDefaultIdentityFiles, listIdx);
+
+                if (storageExistsP(sshStorage, filePath))
+                    strLstAdd(result, filePath);
+            }
         }
         else
         {
-            // Process the known host list entries and add them to the result list
+            // Process the privKey file list entries and add them to the result list
             for (unsigned int listIdx = 0; listIdx < strLstSize(privKeys); listIdx++)
             {
                 // Get the trimmed file path and add it to the result list
                 const String *const filePath = strTrim(strLstGet(privKeys, listIdx));
 
+                // Expand leading tilde and add to the result list
                 if (strBeginsWithZ(filePath, "~/"))
-                {
-                    // Expand leading tilde and add to the result list
                     strLstAddFmt(result, "%s", strZ(storageSftpExpandTildePath(filePath)));
-                }
                 else
                     strLstAdd(result, filePath);
             }
