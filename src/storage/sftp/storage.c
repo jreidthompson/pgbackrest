@@ -607,7 +607,8 @@ storageSftpKnownHostsFilesList(const StringList *const knownHosts)
 }
 
 /***********************************************************************************************************************************
-Build private key file list. privKeys requires full path and/or leading tilde path entries.
+Build identity file list. If privKeys is empty build the default file list, otherwise build the list provided. privKeys
+requires full path and/or leading tilde path entries.
 ***********************************************************************************************************************************/
 static StringList *
 storageSftpIdentityFilesList(const StringList *const privKeys)
@@ -620,51 +621,32 @@ storageSftpIdentityFilesList(const StringList *const privKeys)
 
     MEM_CONTEXT_TEMP_BEGIN()
     {
-        // Process the privKey file list entries and add them to the result list
-        for (unsigned int listIdx = 0; listIdx < strLstSize(privKeys); listIdx++)
+        if (strLstEmpty(privKeys))
         {
-            // Get the trimmed file path and add it to the result list
-            const String *const filePath = strTrim(strLstGet(privKeys, listIdx));
-
-            // Expand leading tilde and add to the result list
-            if (strBeginsWithZ(filePath, "~/"))
-                strLstAddFmt(result, "%s", strZ(storageSftpExpandTildePath(filePath)));
-            else
-                strLstAdd(result, filePath);
+            // Create default file list
+            strLstAddFmt(result, "%s%s", strZ(userHome()), "/.ssh/id_dsa");
+            strLstAddFmt(result, "%s%s", strZ(userHome()), "/.ssh/id_ecdsa");
+            strLstAddFmt(result, "%s%s", strZ(userHome()), "/.ssh/id_ecdsa_sk");
+            strLstAddFmt(result, "%s%s", strZ(userHome()), "/.ssh/id_ed25519");
+            strLstAddFmt(result, "%s%s", strZ(userHome()), "/.ssh/id_ed25519_sk");
+            strLstAddFmt(result, "%s%s", strZ(userHome()), "/.ssh/id_rsa");
         }
-    }
-    MEM_CONTEXT_TEMP_END();
-
-    FUNCTION_LOG_RETURN(STRING_LIST, result);
-}
-
-/***********************************************************************************************************************************
-Expand any leading tilde filepaths in a path list. If a path is not a leading tilde path it is returned as is.
-***********************************************************************************************************************************/
-static StringList *
-storageSftpExpandFilePaths(const StringList *const pathList)
-{
-    FUNCTION_LOG_BEGIN(logLevelDebug);
-        FUNCTION_LOG_PARAM(STRING_LIST, pathList);
-    FUNCTION_LOG_END();
-
-    StringList *const result = strLstNew();
-
-    MEM_CONTEXT_TEMP_BEGIN()
-    {
-        // Process the list entries and add them to the result list
-        for (unsigned int listIdx = 0; listIdx < strLstSize(pathList); listIdx++)
+        else
         {
-            // Get the trimmed file path and add it to the result list
-            const String *const filePath = strTrim(strLstGet(pathList, listIdx));
-
-            if (strBeginsWithZ(filePath, "~/"))
+            // Process the known host list entries and add them to the result list
+            for (unsigned int listIdx = 0; listIdx < strLstSize(privKeys); listIdx++)
             {
-                // Expand leading tilde and add to the result list
-                strLstAddFmt(result, "%s", strZ(storageSftpExpandTildePath(filePath)));
+                // Get the trimmed file path and add it to the result list
+                const String *const filePath = strTrim(strLstGet(privKeys, listIdx));
+
+                if (strBeginsWithZ(filePath, "~/"))
+                {
+                    // Expand leading tilde and add to the result list
+                    strLstAddFmt(result, "%s", strZ(storageSftpExpandTildePath(filePath)));
+                }
+                else
+                    strLstAdd(result, filePath);
             }
-            else
-                strLstAdd(result, filePath);
         }
     }
     MEM_CONTEXT_TEMP_END();
@@ -1415,9 +1397,9 @@ storageSftpNew(
                 do
                 {
                     rc = libssh2_userauth_publickey_fromfile(
-                        this->session, strZ(user),
-                        pubKeyPath != NULL ? strZ(pubKeyPath) : strZ(strCatFmt(strNew(), "%s.pub", strZ(privateKey))),
-                        strZ(privateKey), strZNull(param.keyPassphrase));
+                            this->session, strZ(user),
+                            pubKeyPath != NULL ? strZ(pubKeyPath) : strZ(strCatFmt(strNew(), "%s.pub", strZ(privateKey))),
+                            strZ(privateKey), strZNull(param.keyPassphrase));
                 }
                 while (storageSftpWaitFd(this, rc));
 
@@ -1442,7 +1424,7 @@ storageSftpNew(
             }
         }
 
-        // Free private key list and public key path
+        // Free the private key list, and the public key path
         strLstFree(privateKeys);
         strFree(pubKeyPath);
 
