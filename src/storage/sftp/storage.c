@@ -624,8 +624,7 @@ storageSftpIdentityFilesList(const StringList *const privKeys)
         if (strLstEmpty(privKeys))
         {
             // Create default file list, do not include non-existent files, reduces log noise
-            const Storage *const sshStorage =
-                storagePosixNewP(strNewFmt("%s%s", strZ(userHome()), "/.ssh"));
+            const Storage *const sshStorage = storagePosixNewP(strNewFmt("%s%s", strZ(userHome()), "/.ssh"));
 
             StringList *const sshDefaultIdentityFiles = strLstNew();
             strLstAddFmt(sshDefaultIdentityFiles, "%s%s", strZ(userHome()), "/.ssh/id_dsa");
@@ -1393,10 +1392,9 @@ storageSftpNew(
         // Build/normalize private keys list
         StringList *const privateKeys = storageSftpIdentityFilesList(privKeys);
 
-        // Attempt to authenticate with any provided private keys
+        // Attempt to authenticate with private keys
         bool authSuccess = false;
 
-        // Attempt to authenticate with each private key
         for (unsigned int listIdx = 0; listIdx < strLstSize(privateKeys); listIdx++)
         {
             const String *const privateKey = strLstGet(privateKeys, listIdx);
@@ -1447,6 +1445,7 @@ storageSftpNew(
             if (this->agent == NULL)
             {
                 rc = libssh2_session_last_error(this->session, &ssh2ErrMsg, &ssh2ErrMsgLen, 0);
+
                 THROW_FMT(ServiceError, "failure initializing ssh-agent support [%d]: %s", rc, ssh2ErrMsg);
             }
 
