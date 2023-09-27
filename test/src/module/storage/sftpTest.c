@@ -1333,6 +1333,7 @@ testRun(void)
         HRN_STORAGE_PUT_EMPTY(storageSsh, KEYPRIV_ECDSA_CSTR);
         HRN_STORAGE_PUT_EMPTY(storageSsh, KEYPRIV_ECDSA_SK_CSTR);
         HRN_STORAGE_PUT_EMPTY(storageSsh, KEYPRIV_ED25519_CSTR);
+        HRN_STORAGE_PUT_EMPTY(storageSsh, KEYPRIV_CSTR);
 
         // Load configuration
         argList = strLstNew();
@@ -1453,6 +1454,7 @@ testRun(void)
         HRN_STORAGE_REMOVE(storageSsh, KEYPRIV_ECDSA_CSTR);
         HRN_STORAGE_REMOVE(storageSsh, KEYPRIV_ECDSA_SK_CSTR);
         HRN_STORAGE_REMOVE(storageSsh, KEYPRIV_ED25519_CSTR);
+        HRN_STORAGE_REMOVE(storageSsh, KEYPRIV_CSTR);
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("known host init failure");
