@@ -17,11 +17,24 @@ SFTP Storage
 #include "storage/sftp/storage.intern.h"
 #include "storage/sftp/write.h"
 
+#include <resolv.h>
+
+// jrt !!! remove netdb.h, et al if not needed after testing/dev
+// !!! jrt is this viable/acceptable
+#ifndef __USE_MISC
+#define __USE_MISC                                                  1
+#endif
+#include <netdb.h>
+
 /***********************************************************************************************************************************
 Define PATH_MAX if it is not defined
 ***********************************************************************************************************************************/
 #ifndef PATH_MAX
 #define PATH_MAX                                                (4 * 1024)
+#endif
+
+#ifndef PACKET_SZ
+#define PACKET_SZ                                                   65535
 #endif
 
 /***********************************************************************************************************************************
@@ -1064,6 +1077,58 @@ storageSftpPathRemove(THIS_VOID, const String *const path, const bool recurse, c
     FUNCTION_LOG_RETURN(BOOL, result);
 }
 
+/***********************************************************************************************************************************
+Perform minimal DNS verification on the host. Queries with RES_TRUSTAD and verifies that response is RES_TRUSTAD. Checks that the
+hostkey is returned in the SSHFP list. This is not a complete check but it is better than nothing. It is predicated on the fact that
+the DNS server is properly configured for DNSSEC and the communication path between the host and the DNS server is secure.
+***********************************************************************************************************************************/
+void
+storageSftpTrustAd(const String *const host)
+{
+    FUNCTION_LOG_BEGIN(logLevelDebug);
+        FUNCTION_LOG_PARAM(STRING, host);
+    FUNCTION_LOG_END();
+
+    ASSERT(host != NULL);
+
+    // Initialize the resolver
+    struct __res_state res_state;
+    memset(&res_state, 0, sizeof(res_state));
+
+    if ((res_state.options & RES_INIT) == 0 && res_ninit(&res_state ) == -1)
+        THROW_FMT(ServiceError, "unable to initialize resolver");
+
+    // Set the resolver to use TRUSTAD and return RRSIG records
+    res_state.options |= RES_USE_DNSSEC | RES_USE_EDNS0 | RES_TRUSTAD;
+
+    unsigned char answer[PACKET_SZ];
+
+    // Query the server for the host
+    int len = res_nquery(&res_state, strZ(host), C_IN, T_A, answer, sizeof(answer));
+
+    if (len < 0)
+    {
+        res_nclose(&res_state);
+
+        THROW_FMT(ServiceError, "res_nquery error '%s'", hstrerror(h_errno));
+    }
+
+    // Check the ad flag
+    HEADER *hdr = (HEADER *)answer;
+    if (hdr->ad != 1)
+        THROW_FMT(ServiceError, "RES_TRUSTAD not set in response");
+
+    // Parse the response
+
+    ns_msg handle;
+    ns_initparse(answer, len, &handle);
+
+    // Close the resolver
+    res_nclose(&res_state);
+
+    FUNCTION_LOG_RETURN_VOID();
+}
+
 /**********************************************************************************************************************************/
 static const StorageInterface storageInterfaceSftp =
 {
@@ -1098,6 +1163,7 @@ storageSftpNew(
         FUNCTION_LOG_PARAM(STRING_LIST, param.knownHosts);
         FUNCTION_LOG_PARAM(MODE, param.modeFile);
         FUNCTION_LOG_PARAM(MODE, param.modePath);
+        FUNCTION_LOG_PARAM(BOOL, param.trustAd);
         FUNCTION_LOG_PARAM(BOOL, param.write);
         FUNCTION_LOG_PARAM(FUNCTIONP, param.pathExpressionFunction);
     FUNCTION_LOG_END();
@@ -1314,6 +1380,10 @@ storageSftpNew(
             // Free the known hosts list
             libssh2_knownhost_free(knownHostsList);
         }
+
+        if (param.trustAd)
+            storageSftpTrustAd(host);
+
 
         // Perform public key authorization, expand leading tilde key file paths if needed
         String *const privKeyPath = regExpMatchOne(STRDEF("^ *~"), keyPriv) ? storageSftpExpandTildePath(keyPriv) : strDup(keyPriv);

@@ -124,6 +124,16 @@ AC_CHECK_LIB(
     [AC_CHECK_HEADER(libssh2_sftp.h, [],
         [AC_MSG_ERROR([header file <libssh2_sftp.h> is required])])])
 
+# Check optional resolv library if we have libssh2
+# ----------------------------------------------------------------------------------------------------------------------------------
+if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
+then
+    AC_SUBST(LIBS, "${LIBS} -lresolv")
+#    AC_CHECK_LIB([resolv], [res_ninit], [], [AC_MSG_ERROR([library 'resolv' is required])])
+#    AC_CHECK_HEADER(resolv.h, [], [AC_MSG_ERROR([header file <resolv.h> is required])])
+fi
+
+
 # Check optional zst library. Ignore any versions below 1.0.
 # ----------------------------------------------------------------------------------------------------------------------------------
 AC_CHECK_LIB(

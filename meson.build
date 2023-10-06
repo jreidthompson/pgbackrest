@@ -172,6 +172,7 @@ lib_ssh2 = dependency('libssh2', required: false)
 
 if lib_ssh2.found()
     configuration.set('HAVE_LIBSSH2', true, description: 'Is libssh2 present?')
+    lib_resolv = cc.find_library('resolv')
 endif
 
 # Find optional zstd library
