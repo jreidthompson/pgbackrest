@@ -128,9 +128,8 @@ AC_CHECK_LIB(
 # ----------------------------------------------------------------------------------------------------------------------------------
 if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
 then
-    AC_SUBST(LIBS, "${LIBS} -lresolv")
-#    AC_CHECK_LIB([resolv], [res_ninit], [], [AC_MSG_ERROR([library 'resolv' is required])])
-#    AC_CHECK_HEADER(resolv.h, [], [AC_MSG_ERROR([header file <resolv.h> is required])])
+    AC_CHECK_LIB([resolv], [ns_initparse], [], [AC_MSG_ERROR([library 'resolv' is required])])
+    AC_CHECK_HEADER(resolv.h, [], [AC_MSG_ERROR([header file <resolv.h> is required])])
 fi
 
 

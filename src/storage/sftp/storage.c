@@ -1110,7 +1110,7 @@ storageSftpTrustAd(const String *const host)
     {
         res_nclose(&res_state);
 
-        THROW_FMT(ServiceError, "res_nquery error '%s'", hstrerror(h_errno));
+        THROW_FMT(ServiceError, "res_nquery error '%s' for host '%s'", hstrerror(h_errno), strZ(host));
     }
 
     // Check the ad flag

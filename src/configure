@@ -4189,10 +4189,59 @@ fi
 # ----------------------------------------------------------------------------------------------------------------------------------
 if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
 then
-    LIBS="${LIBS} -lresolv"
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for ns_initparse in -lresolv" >&5
+printf %s "checking for ns_initparse in -lresolv... " >&6; }
+if test ${ac_cv_lib_resolv_ns_initparse+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lresolv  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
 
-#    AC_CHECK_LIB([resolv], [res_ninit], [], [AC_MSG_ERROR([library 'resolv' is required])])
-#    AC_CHECK_HEADER(resolv.h, [], [AC_MSG_ERROR([header file <resolv.h> is required])])
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char ns_initparse ();
+int
+main (void)
+{
+return ns_initparse ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_resolv_ns_initparse=yes
+else $as_nop
+  ac_cv_lib_resolv_ns_initparse=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_resolv_ns_initparse" >&5
+printf "%s\n" "$ac_cv_lib_resolv_ns_initparse" >&6; }
+if test "x$ac_cv_lib_resolv_ns_initparse" = xyes
+then :
+  printf "%s\n" "#define HAVE_LIBRESOLV 1" >>confdefs.h
+
+  LIBS="-lresolv $LIBS"
+
+else $as_nop
+  as_fn_error $? "library 'resolv' is required" "$LINENO" 5
+fi
+
+    ac_fn_c_check_header_compile "$LINENO" "resolv.h" "ac_cv_header_resolv_h" "$ac_includes_default"
+if test "x$ac_cv_header_resolv_h" = xyes
+then :
+
+else $as_nop
+  as_fn_error $? "header file <resolv.h> is required" "$LINENO" 5
+fi
+
 fi
 
 
@@ -5761,4 +5810,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
-# Generated from src/build/configure.ac sha1 692faa9c4a3f68029c6713122e78a7491631bfdc
+# Generated from src/build/configure.ac sha1 75d6effef8179480c54966cbbfb9213f70e45c1e
