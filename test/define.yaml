@@ -609,6 +609,7 @@ unit:
       - name: sftp
         total: 19
         harness: libSsh2
+        harness: libResolv
         harness:
           name: fd
           shim:
