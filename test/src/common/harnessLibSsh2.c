@@ -7,6 +7,7 @@ libssh2 Test Harness
 
 #include <stdio.h>
 #include <string.h>
+#include <resolv.h>
 
 #include "common/type/json.h"
 #include "common/type/string.h"

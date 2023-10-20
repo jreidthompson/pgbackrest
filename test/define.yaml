@@ -609,7 +609,15 @@ unit:
       - name: sftp
         total: 19
         harness: libSsh2
-        harness: libResolv
+        harness:
+          name: sftpResolv
+          shim:
+            storage/sftp/storage:
+              function:
+                - storageSftpResNinit
+                - storageSftpResNquery
+                - storageSftpNsInitparse
+                - storageSftpNsMsgGetflag
         harness:
           name: fd
           shim:

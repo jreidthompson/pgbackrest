@@ -33,6 +33,9 @@ Define PATH_MAX if it is not defined
 #define PATH_MAX                                                (4 * 1024)
 #endif
 
+/***********************************************************************************************************************************
+Define PACKET_SZ if it is not defined
+***********************************************************************************************************************************/
 #ifndef PACKET_SZ
 #define PACKET_SZ                                                   65535
 #endif
@@ -50,6 +53,10 @@ struct StorageSftp
     LIBSSH2_SFTP_HANDLE *sftpHandle;                                // LibSsh2 session sftp handle
     TimeMSec timeout;                                               // Session timeout
 };
+
+// jrt !!! should this be in StorageSftp above?
+// Initialize the resolver
+struct __res_state my_res_state = {0};
 
 /***********************************************************************************************************************************
 Return known host key type based on host key type
@@ -1077,6 +1084,84 @@ storageSftpPathRemove(THIS_VOID, const String *const path, const bool recurse, c
     FUNCTION_LOG_RETURN(BOOL, result);
 }
 
+/**********************************************************************************************************************************/
+static void
+storageSftpSetOption(res_state statep, uint64_t option)
+{
+    FUNCTION_LOG_BEGIN(logLevelTrace);
+        FUNCTION_LOG_PARAM(VOID, statep);
+        FUNCTION_LOG_PARAM(UINT64, option);
+    FUNCTION_LOG_END();
+
+    ASSERT(statep != NULL);
+    ASSERT(option >= RES_INIT && option <= RES_TRUSTAD);
+
+    statep->options |= option;
+
+    FUNCTION_LOG_RETURN_VOID();
+}
+
+/**********************************************************************************************************************************/
+static int
+storageSftpResNinit(res_state statep)
+{
+    FUNCTION_LOG_BEGIN(logLevelTrace);
+        FUNCTION_LOG_PARAM(VOID, statep);
+    FUNCTION_LOG_END();
+
+    ASSERT(statep != NULL);
+
+    FUNCTION_LOG_RETURN(INT, res_ninit(statep));
+}
+
+/**********************************************************************************************************************************/
+static int
+storageSftpResNquery(res_state statep, const char *dname, int class, int type, unsigned char *answer, int anslen)
+{
+    FUNCTION_LOG_BEGIN(logLevelTrace);
+        FUNCTION_LOG_PARAM(VOID, statep);
+        FUNCTION_LOG_PARAM(STRINGZ, dname);
+        FUNCTION_LOG_PARAM(INT, class);
+        FUNCTION_LOG_PARAM(INT, type);
+        FUNCTION_LOG_PARAM(UCHARDATA, answer);
+        FUNCTION_LOG_PARAM(INT, anslen);
+    FUNCTION_LOG_END();
+
+    ASSERT(statep != NULL);
+    ASSERT(dname != NULL);
+    ASSERT(class >= ns_c_invalid && class <= ns_c_max);
+    ASSERT(type >= ns_t_invalid && type <= ns_t_max);
+
+    FUNCTION_LOG_RETURN(INT, res_nquery(statep, dname, class, type, answer, anslen));
+}
+
+static int
+storageSftpNsInitparse(const unsigned char *answer, int len, ns_msg *handle)
+{
+    FUNCTION_LOG_BEGIN(logLevelTrace);
+        FUNCTION_LOG_PARAM(UCHARDATA, answer);
+        FUNCTION_LOG_PARAM(INT, len);
+        FUNCTION_LOG_PARAM(VOID, handle);
+    FUNCTION_LOG_END();
+
+    FUNCTION_LOG_RETURN(INT, ns_initparse(answer, len, handle));
+}
+
+/**********************************************************************************************************************************/
+static int
+storageSftpNsMsgGetflag(ns_msg handle, int ns_f_ad)
+{
+    FUNCTION_LOG_BEGIN(logLevelTrace);
+        FUNCTION_LOG_PARAM(VOID, handle);
+        FUNCTION_LOG_PARAM(INT, ns_f_ad);
+    FUNCTION_LOG_END();
+
+    ASSERT(ns_f_ad >= 0 && ns_f_ad <= ns_f_max);
+
+    FUNCTION_LOG_RETURN(INT, ns_msg_getflag(handle, ns_f_ad));
+}
+
+// !!! Do any supported OS's not support this code?
 /***********************************************************************************************************************************
 Perform minimal DNS verification on the host. Queries with RES_TRUSTAD and verifies that response is RES_TRUSTAD. Checks that the
 hostkey is returned in the SSHFP list. This is not a complete check but it is better than nothing. It is predicated on the fact that
@@ -1091,40 +1176,44 @@ storageSftpTrustAd(const String *const host)
 
     ASSERT(host != NULL);
 
-    // Initialize the resolver
-    struct __res_state res_state;
-    memset(&res_state, 0, sizeof(res_state));
-
-    if ((res_state.options & RES_INIT) == 0 && res_ninit(&res_state ) == -1)
+    if (storageSftpResNinit(&my_res_state) != 0)
         THROW_FMT(ServiceError, "unable to initialize resolver");
 
-    // Set the resolver to use TRUSTAD and return RRSIG records
-    res_state.options |= RES_USE_DNSSEC | RES_USE_EDNS0 | RES_TRUSTAD;
+    // Set the resolver to use TRUSTAD
+    storageSftpSetOption(&my_res_state, RES_TRUSTAD);
 
+    // Query the server for SSHFP records
     unsigned char answer[PACKET_SZ];
 
-    // Query the server for the host
-    int len = res_nquery(&res_state, strZ(host), C_IN, T_A, answer, sizeof(answer));
+    int len = storageSftpResNquery(&my_res_state, strZ(host), C_IN, T_SSHFP, answer, sizeof(answer));
 
+    // Check for errors.
+    // This is dependent on keeping the __USE_MISC for netdb.h. We can drop it and rewrite to a generic error if we think that's
+    // better.
     if (len < 0)
     {
-        res_nclose(&res_state);
+        // Closing before throwing the error does not seem to mess up the hstrerror() call
+        res_nclose(&my_res_state);
 
-        THROW_FMT(ServiceError, "res_nquery error '%s' for host '%s'", hstrerror(h_errno), strZ(host));
+        THROW_FMT(
+            ServiceError,
+            "res_nquery error [%d] %s '%s'", my_res_state.res_h_errno, hstrerror(my_res_state.res_h_errno), strZ(host));
     }
 
-    // Check the ad flag
-    HEADER *hdr = (HEADER *)answer;
-    if (hdr->ad != 1)
-        THROW_FMT(ServiceError, "RES_TRUSTAD not set in response");
-
     // Parse the response
+    ns_msg handle = {0};
+    storageSftpNsInitparse(answer, len, &handle);
 
-    ns_msg handle;
-    ns_initparse(answer, len, &handle);
+    // Check the res_trustad flag
+    if (storageSftpNsMsgGetflag(handle, ns_f_ad) != 1)
+    {
+        res_nclose(&my_res_state);
+
+        THROW_FMT(ServiceError, "Host is untrusted, RES_TRUSTAD not set in response");
+    }
 
     // Close the resolver
-    res_nclose(&res_state);
+    res_nclose(&my_res_state);
 
     FUNCTION_LOG_RETURN_VOID();
 }
@@ -1383,7 +1472,6 @@ storageSftpNew(
 
         if (param.trustAd)
             storageSftpTrustAd(host);
-
 
         // Perform public key authorization, expand leading tilde key file paths if needed
         String *const privKeyPath = regExpMatchOne(STRDEF("^ *~"), keyPriv) ? storageSftpExpandTildePath(keyPriv) : strDup(keyPriv);
