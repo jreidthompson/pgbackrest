@@ -1145,9 +1145,9 @@ testRun(void)
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
 
         // -------------------------------------------------------------------------------------------------------------------------
-        TEST_TITLE("sftp session init success - add host to known_hosts file RSA, trustAd, res_nquery fail");
+        TEST_TITLE("sftp session init success - add host to known_hosts file RSA, trustAd, res_nquery fail, shimmed");
 
-        // Install shim for libresolv
+        // Install shim for SFTP libresolv functions
         hrnSftpResolvShimInstall();
 
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
@@ -1324,7 +1324,11 @@ testRun(void)
              .param = "[\"trustad-pass\",null,\"12345678901234567890\",20,\"Generated from pgBackRest\",25,589825]"},
             {.function = HRNLIBSSH2_KNOWNHOST_WRITEFILE, .param = "[\"" KNOWNHOSTS_FILE_CSTR "\",1]",
              .resultInt = LIBSSH2_ERROR_NONE},
-            {.function = NULL}
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_CSTR "\",\"" KEYPRIV_CSTR "\",null]",
+             .resultInt = 0},
+            {.function = HRNLIBSSH2_SFTP_INIT},
+            HRNLIBSSH2_MACRO_SHUTDOWN()
         });
 
         argList = strLstNew();
@@ -1342,9 +1346,12 @@ testRun(void)
         hrnCfgArgRawZ(argList, cfgOptRepoSftpRequireTrustAd, "y");
         HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
-        storageSftpSetOption(&my_res_state, RES_TRUSTAD);
+// jrt remove        storageSftpSetOption(&my_res_state, RES_TRUSTAD);
 
-        TEST_ERROR(
+        storageTest = NULL;
+
+        TEST_ASSIGN(
+            storageTest,
             storageSftpNewP(
                 cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
                 cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
@@ -1356,13 +1363,14 @@ testRun(void)
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
                 .trustAd = cfgOptionIdxBool(cfgOptRepoSftpRequireTrustAd, repoIdx),
                 .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
-            ServiceError,
-            "Host is untrusted, RES_TRUSTAD not set in response");
+            "new storage (defaults)");
 
         TEST_RESULT_LOG(
             "P00   WARN: host 'trustad-pass' not found in known hosts files, attempting to add host to "
             "'/home/" TEST_USER "/.ssh/known_hosts'\n"
             "P00   WARN: pgBackRest added new host 'trustad-pass' to '/home/" TEST_USER "/.ssh/known_hosts'");
+
+        memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("sftp session init success - add host to known_hosts file RSA, storageSftpResInit fail");
@@ -1435,7 +1443,7 @@ testRun(void)
             "'/home/" TEST_USER "/.ssh/known_hosts'\n"
             "P00   WARN: pgBackRest added new host 'trustad-fail' to '/home/" TEST_USER "/.ssh/known_hosts'");
 
-        // Uninstall shim for libresolv
+        // Uninstall shim for SFTP libresolv functions
         hrnSftpResolvShimUninstall();
 >>>>>>> 451c94824 (Start to shim libresolv functions in order to implement tests)
 

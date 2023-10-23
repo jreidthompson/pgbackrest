@@ -30,7 +30,7 @@ static struct
 /***********************************************************************************************************************************
 Shim storageSftpResNinit()
 ***********************************************************************************************************************************/
-int
+static int
 storageSftpResNinit(res_state statep)
 {
     FUNCTION_HARNESS_BEGIN();
@@ -57,7 +57,7 @@ storageSftpResNinit(res_state statep)
 /***********************************************************************************************************************************
 Shim storageSftpResNquery()
 ***********************************************************************************************************************************/
-int
+static int
 storageSftpResNquery(res_state statep, const char *dname, int class, int type, unsigned char *answer, int anslen)
 {
     FUNCTION_HARNESS_BEGIN();
@@ -80,19 +80,23 @@ storageSftpResNquery(res_state statep, const char *dname, int class, int type, u
 
     if (hrnSftpResolvStatic.localShimSftpResolv)
     {
+        HEADER *header = (HEADER *)answer;
 
         if (strcmp(dname, "trustad-fail") == 0)
         {
             result = 0;
+            header->ad = 0;
         }
         else if (strcmp(dname, "trustad-pass") == 0)
         {
             result = 1;
+            header->ad = 1;
         }
         else
         {
             result = -1;
             statep->res_h_errno = NO_DATA;
+            header->ad = 0;
         }
     }
     // Else call the normal function
@@ -105,7 +109,7 @@ storageSftpResNquery(res_state statep, const char *dname, int class, int type, u
 /***********************************************************************************************************************************
 Shim storageSftpNsInitparse()
 ***********************************************************************************************************************************/
-int
+static int
 storageSftpNsInitparse(const unsigned char *answer, int len, ns_msg *handle)
 {
     FUNCTION_HARNESS_BEGIN();
@@ -136,39 +140,9 @@ storageSftpNsInitparse(const unsigned char *answer, int len, ns_msg *handle)
     else
         result = storageSftpNsInitparse_SHIMMED(answer, len, handle);
 
-    // jrt !!! start here
+    // jrt !!! TBD if needed start here
     // Populate handle with dummy data for storageSftpNsMsgGetflag() to work
 
-
-    FUNCTION_HARNESS_RETURN(INT, result);
-}
-
-/***********************************************************************************************************************************
-Shim storageSftpNsMsgGetflag()
-***********************************************************************************************************************************/
-static int
-storageSftpNsMsgGetflag(ns_msg handle, int ns_f_ad)
-{
-    FUNCTION_HARNESS_BEGIN();
-        FUNCTION_HARNESS_PARAM(VOID, handle);
-        FUNCTION_HARNESS_PARAM(INT, ns_f_ad);
-    FUNCTION_HARNESS_END();
-
-    (void)handle;
-    (void)ns_f_ad;
-
-    int result;
-
-    if (hrnSftpResolvStatic.localShimSftpResolv)
-    {
-        if (ns_f_ad == 1 )
-            result = 1;
-        else
-            result = 0;
-    }
-    // Else call the normal function
-    else
-        result = storageSftpNsMsgGetflag_SHIMMED(handle, ns_f_ad);
 
     FUNCTION_HARNESS_RETURN(INT, result);
 }

@@ -1135,6 +1135,7 @@ storageSftpResNquery(res_state statep, const char *dname, int class, int type, u
     FUNCTION_LOG_RETURN(INT, res_nquery(statep, dname, class, type, answer, anslen));
 }
 
+/**********************************************************************************************************************************/
 static int
 storageSftpNsInitparse(const unsigned char *answer, int len, ns_msg *handle)
 {
@@ -1147,30 +1148,17 @@ storageSftpNsInitparse(const unsigned char *answer, int len, ns_msg *handle)
     FUNCTION_LOG_RETURN(INT, ns_initparse(answer, len, handle));
 }
 
-/**********************************************************************************************************************************/
-static int
-storageSftpNsMsgGetflag(ns_msg handle, int ns_f_ad)
-{
-    FUNCTION_LOG_BEGIN(logLevelTrace);
-        FUNCTION_LOG_PARAM(VOID, handle);
-        FUNCTION_LOG_PARAM(INT, ns_f_ad);
-    FUNCTION_LOG_END();
-
-    ASSERT(ns_f_ad >= 0 && ns_f_ad <= ns_f_max);
-
-    FUNCTION_LOG_RETURN(INT, ns_msg_getflag(handle, ns_f_ad));
-}
-
 // !!! Do any supported OS's not support this code?
 /***********************************************************************************************************************************
 Perform minimal DNS verification on the host. Queries with RES_TRUSTAD and verifies that response is RES_TRUSTAD. Checks that the
 hostkey is returned in the SSHFP list. This is not a complete check but it is better than nothing. It is predicated on the fact that
 the DNS server is properly configured for DNSSEC and the communication path between the host and the DNS server is secure.
 ***********************************************************************************************************************************/
-void
-storageSftpTrustAd(const String *const host)
+static void
+storageSftpTrustAd(StorageSftp *const this, const String *const host)
 {
     FUNCTION_LOG_BEGIN(logLevelDebug);
+        FUNCTION_LOG_PARAM(STORAGE_SFTP, this);
         FUNCTION_LOG_PARAM(STRING, host);
     FUNCTION_LOG_END();
 
@@ -1200,17 +1188,21 @@ storageSftpTrustAd(const String *const host)
             "res_nquery error [%d] %s '%s'", my_res_state.res_h_errno, hstrerror(my_res_state.res_h_errno), strZ(host));
     }
 
-    // Parse the response
-    ns_msg handle = {0};
+    // Initialize parsing the response
+    ns_msg handle;
     storageSftpNsInitparse(answer, len, &handle);
 
-    // Check the res_trustad flag
-    if (storageSftpNsMsgGetflag(handle, ns_f_ad) != 1)
+    // Check the RES_TRUSTAD flag
+    HEADER *dnsMsgHeader = (HEADER *)answer;
+    if ((dnsMsgHeader->ad) != 1)
     {
         res_nclose(&my_res_state);
 
         THROW_FMT(ServiceError, "Host is untrusted, RES_TRUSTAD not set in response");
     }
+
+    // Check that the fingerprint is in the SSHFP list
+//    storageSftpVerifyFingerprint(this, handle);
 
     // Close the resolver
     res_nclose(&my_res_state);
@@ -1471,7 +1463,7 @@ storageSftpNew(
         }
 
         if (param.trustAd)
-            storageSftpTrustAd(host);
+            storageSftpTrustAd(this, host);
 
         // Perform public key authorization, expand leading tilde key file paths if needed
         String *const privKeyPath = regExpMatchOne(STRDEF("^ *~"), keyPriv) ? storageSftpExpandTildePath(keyPriv) : strDup(keyPriv);

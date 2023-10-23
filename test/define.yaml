@@ -617,7 +617,6 @@ unit:
                 - storageSftpResNinit
                 - storageSftpResNquery
                 - storageSftpNsInitparse
-                - storageSftpNsMsgGetflag
         harness:
           name: fd
           shim:
