@@ -5,9 +5,9 @@ libssh2 Test Harness
 
 #ifdef HAVE_LIBSSH2
 
+#include <resolv.h>
 #include <stdio.h>
 #include <string.h>
-#include <resolv.h>
 
 #include "common/type/json.h"
 #include "common/type/string.h"

@@ -26,7 +26,6 @@ static struct
     bool localShimSftpResolv;                                       // Is the shim installed?
 } hrnSftpResolvStatic;
 
-
 /***********************************************************************************************************************************
 Shim storageSftpResNinit()
 ***********************************************************************************************************************************/
@@ -87,7 +86,7 @@ storageSftpResNquery(res_state statep, const char *dname, int class, int type, u
             result = 0;
             header->ad = 0;
         }
-        else if (strcmp(dname, "trustad-pass") == 0)
+        else if (strcmp(dname, "trustad-pass") == 0 || strcmp(dname, "localhost") == 0)
         {
             result = 1;
             header->ad = 1;
@@ -140,11 +139,23 @@ storageSftpNsInitparse(const unsigned char *answer, int len, ns_msg *handle)
     else
         result = storageSftpNsInitparse_SHIMMED(answer, len, handle);
 
-    // jrt !!! TBD if needed start here
-    // Populate handle with dummy data for storageSftpNsMsgGetflag() to work
-
-
     FUNCTION_HARNESS_RETURN(INT, result);
+}
+
+/***********************************************************************************************************************************
+Shim storageSftpVerifyFingerprint()
+***********************************************************************************************************************************/
+static void
+storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
+{
+    if (session == NULL)
+        THROW(AssertError, "storageSftpVerifyFingerprint expects 'session' to be not null");
+
+    if (hrnSftpResolvStatic.localShimSftpResolv)
+    {
+    }
+    else
+        storageSftpVerifyFingerprint_SHIMMED(session, handle);
 }
 
 /**********************************************************************************************************************************/

@@ -607,7 +607,7 @@ unit:
 
       # ----------------------------------------------------------------------------------------------------------------------------
       - name: sftp
-        total: 19
+        total: 20
         harness: libSsh2
         harness:
           name: sftpResolv
@@ -617,6 +617,7 @@ unit:
                 - storageSftpResNinit
                 - storageSftpResNquery
                 - storageSftpNsInitparse
+                - storageSftpVerifyFingerprint
         harness:
           name: fd
           shim:

@@ -1148,6 +1148,71 @@ storageSftpNsInitparse(const unsigned char *answer, int len, ns_msg *handle)
     FUNCTION_LOG_RETURN(INT, ns_initparse(answer, len, handle));
 }
 
+/**********************************************************************************************************************************/
+static void
+storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
+{
+    FUNCTION_LOG_BEGIN(logLevelTrace);
+        FUNCTION_LOG_PARAM(VOID, session);
+        FUNCTION_LOG_PARAM(VOID, handle);
+    FUNCTION_LOG_END();
+
+    bool result = false;
+
+    for (int rrnum = 0; rrnum < ns_msg_count(handle, ns_s_an); rrnum++)
+    {
+        ns_rr rr;
+
+        ns_parserr(&handle, ns_s_an, rrnum, &rr);
+
+        typedef struct rdata_sshfp
+        {
+            unsigned algorithm : 8;
+            unsigned digest_type : 8;
+            unsigned char *digest;
+        } rdata_sshfp_t;
+
+        rdata_sshfp_t sshfp;
+
+        sshfp.digest_type = *((unsigned char *) ns_rr_rdata(rr) + 1);
+        sshfp.digest = (unsigned char *) ns_rr_rdata(rr) + 2;
+
+        int hashType;
+        size_t hashSize;
+
+        // Only SHA1 and SHA256 are currently defined as valid SSHFP RR types for fingerprint types
+        if (sshfp.digest_type == 1)
+        {
+            hashType = LIBSSH2_HOSTKEY_HASH_SHA1;
+            hashSize = HASH_TYPE_SHA1_SIZE;
+        }
+        else
+        {
+            hashType = LIBSSH2_HOSTKEY_HASH_SHA256;
+            hashSize = HASH_TYPE_SHA256_SIZE;
+        }
+
+        // Generate hex encoded sshfp.digest
+        char buffer[256];
+        encodeToStr(encodingHex, sshfp.digest, hashSize, buffer);
+
+        const char *binaryFingerprint = libssh2_hostkey_hash(session, hashType);
+
+        if (binaryFingerprint != NULL && memcmp(binaryFingerprint, sshfp.digest, ns_rr_rdlen(rr) - 2) == 0)
+        {
+            result = true;
+            LOG_DETAIL_FMT("sshfp fingerprint match found for sshfp.digest_type '%d' '%s'", sshfp.digest_type, buffer);
+        }
+        else
+            LOG_DETAIL_FMT("no sshfp fingerprint match found for sshfp.digest_type '%d' '%s'", sshfp.digest_type, buffer);
+    }
+
+    if (result == false)
+        THROW_FMT(ServiceError, "Host key not found in SSHFP record");
+
+    FUNCTION_LOG_RETURN_VOID();
+}
+
 // !!! Do any supported OS's not support this code?
 /***********************************************************************************************************************************
 Perform minimal DNS verification on the host. Queries with RES_TRUSTAD and verifies that response is RES_TRUSTAD. Checks that the
@@ -1202,7 +1267,7 @@ storageSftpTrustAd(StorageSftp *const this, const String *const host)
     }
 
     // Check that the fingerprint is in the SSHFP list
-//    storageSftpVerifyFingerprint(this, handle);
+    storageSftpVerifyFingerprint(this->session, handle);
 
     // Close the resolver
     res_nclose(&my_res_state);
