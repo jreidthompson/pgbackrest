@@ -430,7 +430,19 @@ libssh2_hostkey_hash(LIBSSH2_SESSION *session, int hash_type)
     }
     MEM_CONTEXT_TEMP_END();
 
-    return hrnLibSsh2->resultNull ? NULL : (const char *)hrnLibSsh2->resultZ;
+    char *result;
+
+    // For this resultZ, return it's binary representation to get a succssful match
+    if (hrnLibSsh2->resultZ != NULL && strcmp(hrnLibSsh2->resultZ, "87ac6bede384d2dc6254f396b83ed34856512e64") == 0)
+    {
+        decodeToBin(encodingHex, hrnLibSsh2->resultZ, hrnLibSsh2->fingerPrint);
+
+        result = (char *)hrnLibSsh2->fingerPrint;
+    }
+    else
+        result = (char *)hrnLibSsh2->resultZ;
+
+    return hrnLibSsh2->resultNull ? NULL : (const char *)result;
 }
 
 /***********************************************************************************************************************************

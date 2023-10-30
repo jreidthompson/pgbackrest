@@ -1181,15 +1181,19 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
         size_t hashSize;
 
         // Only SHA1 and SHA256 are currently defined as valid SSHFP RR types for fingerprint types
-        if (sshfp.digest_type == 1)
+        switch (sshfp.digest_type)
         {
-            hashType = LIBSSH2_HOSTKEY_HASH_SHA1;
-            hashSize = HASH_TYPE_SHA1_SIZE;
-        }
-        else
-        {
-            hashType = LIBSSH2_HOSTKEY_HASH_SHA256;
-            hashSize = HASH_TYPE_SHA256_SIZE;
+            case 1:
+                hashType = LIBSSH2_HOSTKEY_HASH_SHA1;
+                hashSize = HASH_TYPE_SHA1_SIZE;
+                break;
+
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
+            case 2:
+                hashType = LIBSSH2_HOSTKEY_HASH_SHA256;
+                hashSize = HASH_TYPE_SHA256_SIZE;
+                break;
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
         }
 
         // Generate hex encoded sshfp.digest
@@ -1198,7 +1202,7 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
 
         const char *binaryFingerprint = libssh2_hostkey_hash(session, hashType);
 
-        if (binaryFingerprint != NULL && memcmp(binaryFingerprint, sshfp.digest, ns_rr_rdlen(rr) - 2) == 0)
+        if (binaryFingerprint != NULL && memcmp(binaryFingerprint, sshfp.digest, (size_t)ns_rr_rdlen(rr) - 2) == 0)
         {
             result = true;
             LOG_DETAIL_FMT("sshfp fingerprint match found for sshfp.digest_type '%d' '%s'", sshfp.digest_type, buffer);

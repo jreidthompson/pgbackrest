@@ -8157,7 +8157,8 @@ testRun(void)
 
         TimeMSec timeout = 500;
         const StorageSftpNewParam param = {.trustAd = true};
-        const String *host = STRDEF("muffat.debian.org");
+        // const String *host = STRDEF("muffat.debian.org");
+        const String *host = STRDEF("www.postgresql.org");
         unsigned int port = 22;
 
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
@@ -8166,8 +8167,16 @@ testRun(void)
             {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
             {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = 0},
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultNull = true},
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[3]", .resultZ = HOSTKEY},
+#else
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = HOSTKEY},
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[3]", .resultNull = true},
+#else
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultNull = true},
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultNull = true},
             {.function = NULL},
         });
@@ -8276,6 +8285,143 @@ testRun(void)
             "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type '2'"
             " 'ded38fadb5713bc6c772e788b5cc41223ca4072c061e5ef152b63ebb1b024096'\n"
             "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type '1' '87ac6bede384d2dc6254f396b83ed34856512e64'");
+
+        harnessLogLevelReset();
+#else
+        TEST_LOG(PROJECT_NAME " not built with sftp support");
+#endif // HAVE_LIBSSH2
+    }
+
+    // *****************************************************************************************************************************
+    if (testBegin("storageSftpVerifyFingerprint() localhost"))
+    {
+#ifdef HAVE_LIBSSH2
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("storageSftpVerifyFingerprint() success");
+
+        harnessLogLevelSet(logLevelDetail);
+
+        TimeMSec timeout = 500;
+        const StorageSftpNewParam param = {.trustAd = true};
+        // const String *host = STRDEF("muffat.debian.org");
+        const String *host = STRDEF("www.postgresql.org");
+        unsigned int port = 22;
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = 0},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = 0},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultNull = true},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[3]", .resultZ = HOSTKEY},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[3]", .resultNull = true},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "87ac6bede384d2dc6254f396b83ed34856512e64"},
+            {.function = NULL},
+        });
+
+        OBJ_NEW_BEGIN(StorageSftp, .childQty = MEM_CONTEXT_QTY_MAX, .callbackQty = 1)
+        {
+            *this = (StorageSftp)
+            {
+                .interface = storageInterfaceSftp,
+                .timeout = timeout,
+            };
+
+            // Init SFTP session
+            if (libssh2_init(0) != 0)
+                THROW_FMT(ServiceError, "unable to init libssh2");
+
+            this->ioSession = ioClientOpen(sckClientNew(host, port, timeout, timeout));
+            this->session = libssh2_session_init();
+
+            if (this->session == NULL)
+                THROW_FMT(ServiceError, "unable to init libssh2 session");
+
+            // Set session to non-blocking
+            libssh2_session_set_blocking(this->session, 0);
+
+            // Perform handshake
+            int rc;
+
+            do
+            {
+                rc = libssh2_session_handshake(this->session, ioSessionFd(this->ioSession));
+            }
+            while (storageSftpWaitFd(this, rc));
+
+            if (rc == LIBSSH2_ERROR_EAGAIN)
+                THROW_FMT(ServiceError, "timeout during libssh2 handshake [%d]", rc);
+
+            if (rc != 0)
+                THROW_FMT(ServiceError, "libssh2 handshake failed [%d]", rc);
+
+            if (param.trustAd)
+            {
+                // storageSftpTrustAd(this, host);
+                if (storageSftpResNinit(&my_res_state) != 0)
+                    THROW_FMT(ServiceError, "unable to initialize resolver");
+
+                // Set the resolver to use TRUSTAD
+                storageSftpSetOption(&my_res_state, RES_TRUSTAD);
+
+                // Query the server for SSHFP records
+                unsigned char answer[PACKET_SZ];
+
+                int len = storageSftpResNquery(&my_res_state, strZ(host), C_IN, T_SSHFP, answer, sizeof(answer));
+
+                // Check for errors.
+                // This is dependent on keeping the __USE_MISC for netdb.h. We can drop it and rewrite to a generic error if we
+                // think that's better.
+                if (len < 0)
+                {
+                    // Closing before throwing the error does not seem to mess up the hstrerror() call
+                    res_nclose(&my_res_state);
+
+                    THROW_FMT(
+                        ServiceError,
+                        "res_nquery error [%d] %s '%s'", my_res_state.res_h_errno, hstrerror(my_res_state.res_h_errno),
+                        strZ(host));
+                }
+
+                // Overwrite the sshfp response with a known defined response for testing
+                Buffer *sshfp =
+                    storageGetP(storageNewReadP(storagePosixNewP(HRN_PATH_REPO_STR), STRDEF("test/data/muffat.debian.org.sshfp")));
+                TEST_RESULT_INT((int)bufUsed(sshfp), 195, "expected size");
+                memset(answer, 0, sizeof(answer));
+                memmove(answer, bufPtr(sshfp), (size_t)bufUsed(sshfp));
+                len = (int)bufUsed(sshfp);
+
+                // Initialize parsing the response
+                ns_msg handle;
+                storageSftpNsInitparse(answer, len, &handle);
+
+                // Check the RES_TRUSTAD flag
+                HEADER *dnsMsgHeader = (HEADER *)answer;
+                if ((dnsMsgHeader->ad) != 1)
+                {
+                    res_nclose(&my_res_state);
+
+                    THROW_FMT(ServiceError, "Host is untrusted, RES_TRUSTAD not set in response");
+                }
+
+                // Check that the fingerprint is in the SSHFP list
+                TEST_RESULT_VOID(storageSftpVerifyFingerprint(this->session, handle), "Host key found in SSHFP record");
+
+                // Close the resolver
+                res_nclose(&my_res_state);
+            }
+        }
+        OBJ_NEW_END();
+
+        objFree(this);
+
+        TEST_RESULT_LOG(
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type '1' 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type '2'"
+            " 'cf40a796b1e8775e60a77d410db745012e13410935489c411dbfcadf9d62de19'\n"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type '2'"
+            " 'ded38fadb5713bc6c772e788b5cc41223ca4072c061e5ef152b63ebb1b024096'\n"
+            "P00 DETAIL: sshfp fingerprint match found for sshfp.digest_type '1' '87ac6bede384d2dc6254f396b83ed34856512e64'");
 
         harnessLogLevelReset();
 #else
