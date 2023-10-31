@@ -1199,10 +1199,15 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
         if (binaryFingerprint != NULL && memcmp(binaryFingerprint, sshfp.digest, (size_t)ns_rr_rdlen(rr) - 2) == 0)
         {
             result = true;
-            LOG_DETAIL_FMT("sshfp fingerprint match found for sshfp.digest_type '%d' '%s'", sshfp.digest_type, buffer);
+            LOG_DETAIL_FMT(
+                "sshfp fingerprint match found for sshfp.digest_type [%d] hashType [%d] '%s'", sshfp.digest_type, hashType, buffer);
         }
         else
-            LOG_DETAIL_FMT("no sshfp fingerprint match found for sshfp.digest_type '%d' '%s'", sshfp.digest_type, buffer);
+        {
+            LOG_DETAIL_FMT(
+                "no sshfp fingerprint match found for sshfp.digest_type [%d] hashType [%d] '%s'", sshfp.digest_type, hashType,
+                buffer);
+        }
     }
 
     if (result == false)

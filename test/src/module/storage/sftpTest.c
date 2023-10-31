@@ -8279,12 +8279,21 @@ testRun(void)
         objFree(this);
 
         TEST_RESULT_LOG(
-            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type '1' 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
-            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type '2'"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type [1] hashType [2]"
+            " 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type [2] hashType [3]"
             " 'cf40a796b1e8775e60a77d410db745012e13410935489c411dbfcadf9d62de19'\n"
-            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type '2'"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type [2] hashType [3]"
             " 'ded38fadb5713bc6c772e788b5cc41223ca4072c061e5ef152b63ebb1b024096'\n"
-            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type '1' '87ac6bede384d2dc6254f396b83ed34856512e64'");
+#else
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type [2] hashType [2]"
+            " 'cf40a796b1e8775e60a77d410db745012e134109'\n"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type [2] hashType [2]"
+            " 'ded38fadb5713bc6c772e788b5cc41223ca4072c'\n"
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type [1] hashType [2]"
+            " '87ac6bede384d2dc6254f396b83ed34856512e64'");
 
         harnessLogLevelReset();
 #else
@@ -8313,8 +8322,16 @@ testRun(void)
             {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
             {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = 0},
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultNull = true},
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[3]", .resultZ = HOSTKEY},
+#else
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = HOSTKEY},
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[3]", .resultNull = true},
+#else
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultNull = true},
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "87ac6bede384d2dc6254f396b83ed34856512e64"},
             {.function = NULL},
         });
@@ -8416,12 +8433,21 @@ testRun(void)
         objFree(this);
 
         TEST_RESULT_LOG(
-            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type '1' 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
-            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type '2'"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type [1] hashType [2]"
+            " 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type [2] hashType [3]"
             " 'cf40a796b1e8775e60a77d410db745012e13410935489c411dbfcadf9d62de19'\n"
-            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type '2'"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type [2] hashType [3]"
             " 'ded38fadb5713bc6c772e788b5cc41223ca4072c061e5ef152b63ebb1b024096'\n"
-            "P00 DETAIL: sshfp fingerprint match found for sshfp.digest_type '1' '87ac6bede384d2dc6254f396b83ed34856512e64'");
+#else
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type [2] hashType [2]"
+            " 'cf40a796b1e8775e60a77d410db745012e134109'\n"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type [2] hashType [2]"
+            " 'ded38fadb5713bc6c772e788b5cc41223ca4072c'\n"
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
+            "P00 DETAIL: sshfp fingerprint match found for sshfp.digest_type [1] hashType [2]"
+            " '87ac6bede384d2dc6254f396b83ed34856512e64'");
 
         harnessLogLevelReset();
 #else
