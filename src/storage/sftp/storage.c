@@ -1177,24 +1177,18 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
         sshfp.digest_type = *((unsigned char *) ns_rr_rdata(rr) + 1);
         sshfp.digest = (unsigned char *) ns_rr_rdata(rr) + 2;
 
-        int hashType;
-        size_t hashSize;
-
         // Only SHA1 and SHA256 are currently defined as valid SSHFP RR types for fingerprint types
-        switch (sshfp.digest_type)
-        {
-            case 1:
-                hashType = LIBSSH2_HOSTKEY_HASH_SHA1;
-                hashSize = HASH_TYPE_SHA1_SIZE;
-                break;
+        int hashType = LIBSSH2_HOSTKEY_HASH_SHA1;
+        size_t hashSize = HASH_TYPE_SHA1_SIZE;
 
+        // Newer versions of libssh2 support SHA256
 #ifdef LIBSSH2_HOSTKEY_HASH_SHA256
-            case 2:
-                hashType = LIBSSH2_HOSTKEY_HASH_SHA256;
-                hashSize = HASH_TYPE_SHA256_SIZE;
-                break;
-#endif // LIBSSH2_HOSTKEY_HASH_SHA256
+        if (sshfp.digest_type == 2)
+        {
+            hashType = LIBSSH2_HOSTKEY_HASH_SHA256;
+            hashSize = HASH_TYPE_SHA256_SIZE;
         }
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
 
         // Generate hex encoded sshfp.digest
         char buffer[256];
