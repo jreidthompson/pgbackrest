@@ -1086,7 +1086,7 @@ storageSftpPathRemove(THIS_VOID, const String *const path, const bool recurse, c
 
 /**********************************************************************************************************************************/
 static void
-storageSftpSetOption(res_state statep, uint64_t option)
+storageSftpSetOption(res_state statep, uint32_t option)
 {
     FUNCTION_LOG_BEGIN(logLevelTrace);
         FUNCTION_LOG_PARAM(VOID, statep);
@@ -1094,7 +1094,9 @@ storageSftpSetOption(res_state statep, uint64_t option)
     FUNCTION_LOG_END();
 
     ASSERT(statep != NULL);
+#ifdef RES_TRUSTAD
     ASSERT(option >= RES_INIT && option <= RES_TRUSTAD);
+#endif // RES_TRUSTAD
 
     statep->options |= option;
 
@@ -1216,7 +1218,6 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
     FUNCTION_LOG_RETURN_VOID();
 }
 
-// !!! Do any supported OS's not support this code?
 /***********************************************************************************************************************************
 Perform minimal DNS verification on the host. Queries with RES_TRUSTAD and verifies that response is RES_TRUSTAD. Checks that the
 hostkey is returned in the SSHFP list. This is not a complete check but it is better than nothing. It is predicated on the fact that
@@ -1235,8 +1236,10 @@ storageSftpTrustAd(StorageSftp *const this, const String *const host)
     if (storageSftpResNinit(&my_res_state) != 0)
         THROW_FMT(ServiceError, "unable to initialize resolver");
 
+#ifdef RES_TRUSTAD
     // Set the resolver to use TRUSTAD
     storageSftpSetOption(&my_res_state, RES_TRUSTAD);
+#endif // RES_TRUSTAD
 
     // Query the server for SSHFP records
     unsigned char answer[PACKET_SZ];
@@ -1260,6 +1263,7 @@ storageSftpTrustAd(StorageSftp *const this, const String *const host)
     ns_msg handle;
     storageSftpNsInitparse(answer, len, &handle);
 
+#ifdef RES_TRUSTAD
     // Check the RES_TRUSTAD flag
     HEADER *dnsMsgHeader = (HEADER *)answer;
     if ((dnsMsgHeader->ad) != 1)
@@ -1268,12 +1272,18 @@ storageSftpTrustAd(StorageSftp *const this, const String *const host)
 
         THROW_FMT(ServiceError, "Host is untrusted, RES_TRUSTAD not set in response");
     }
+#endif // RES_TRUSTAD
 
     // Check that the fingerprint is in the SSHFP list
     storageSftpVerifyFingerprint(this->session, handle);
 
     // Close the resolver
     res_nclose(&my_res_state);
+
+#ifndef RES_TRUSTAD
+    LOG_DETAIL_FMT(
+        "RES_TRUSTAD not supported on this OS, skipping trust_ad check for host '%s'", strZ(host));
+#endif // RES_TRUSTAD
 
     FUNCTION_LOG_RETURN_VOID();
 }

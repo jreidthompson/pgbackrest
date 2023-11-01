@@ -1221,6 +1221,7 @@ testRun(void)
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("sftp session init success - add host to known_hosts file RSA, trustAd fail");
 
+#ifdef RES_TRUSTAD
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
         {
             {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
@@ -1285,6 +1286,9 @@ testRun(void)
             "P00   WARN: host 'trustad-fail' not found in known hosts files, attempting to add host to "
             "'/home/" TEST_USER "/.ssh/known_hosts'\n"
             "P00   WARN: pgBackRest added new host 'trustad-fail' to '/home/" TEST_USER "/.ssh/known_hosts'");
+#else
+        TEST_LOG("RES_TRUSTAD not supported by OS");
+#endif // RES_TRUSTAD
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("sftp session init success - add host to known_hosts file RSA, trustAd pass");
@@ -1337,8 +1341,6 @@ testRun(void)
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
         hrnCfgArgRawZ(argList, cfgOptRepoSftpRequireTrustAd, "y");
         HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
-
-// jrt remove        storageSftpSetOption(&my_res_state, RES_TRUSTAD);
 
         storageTest = NULL;
 
@@ -8219,12 +8221,13 @@ testRun(void)
 
             if (param.trustAd)
             {
-                // storageSftpTrustAd(this, host);
                 if (storageSftpResNinit(&my_res_state) != 0)
                     THROW_FMT(ServiceError, "unable to initialize resolver");
 
+#ifdef RES_TRUSTAD
                 // Set the resolver to use TRUSTAD
                 storageSftpSetOption(&my_res_state, RES_TRUSTAD);
+#endif // RES_TRUSTAD
 
                 // Query the server for SSHFP records
                 unsigned char answer[PACKET_SZ];
@@ -8257,6 +8260,7 @@ testRun(void)
                 ns_msg handle;
                 storageSftpNsInitparse(answer, len, &handle);
 
+#ifdef RES_TRUSTAD
                 // Check the RES_TRUSTAD flag
                 HEADER *dnsMsgHeader = (HEADER *)answer;
                 if ((dnsMsgHeader->ad) != 1)
@@ -8265,6 +8269,7 @@ testRun(void)
 
                     THROW_FMT(ServiceError, "Host is untrusted, RES_TRUSTAD not set in response");
                 }
+#endif // RES_TRUSTAD
 
                 // Check that the fingerprint is in the SSHFP list
                 TEST_ERROR_FMT(
@@ -8312,7 +8317,8 @@ testRun(void)
 
         TimeMSec timeout = 500;
         const StorageSftpNewParam param = {.trustAd = true};
-        // const String *host = STRDEF("muffat.debian.org");
+
+        // Configure a valid host so that we can successfully initialize the resolver
         const String *host = STRDEF("www.postgresql.org");
         unsigned int port = 22;
 
@@ -8374,12 +8380,13 @@ testRun(void)
 
             if (param.trustAd)
             {
-                // storageSftpTrustAd(this, host);
                 if (storageSftpResNinit(&my_res_state) != 0)
                     THROW_FMT(ServiceError, "unable to initialize resolver");
 
+#ifdef RES_TRUSTAD
                 // Set the resolver to use TRUSTAD
                 storageSftpSetOption(&my_res_state, RES_TRUSTAD);
+#endif // RES_TRUSTAD
 
                 // Query the server for SSHFP records
                 unsigned char answer[PACKET_SZ];
@@ -8403,7 +8410,10 @@ testRun(void)
                 // Overwrite the sshfp response with a known defined response for testing
                 Buffer *sshfp =
                     storageGetP(storageNewReadP(storagePosixNewP(HRN_PATH_REPO_STR), STRDEF("test/data/muffat.debian.org.sshfp")));
+
+                // Verify we got the expected size
                 TEST_RESULT_INT((int)bufUsed(sshfp), 195, "expected size");
+
                 memset(answer, 0, sizeof(answer));
                 memmove(answer, bufPtr(sshfp), (size_t)bufUsed(sshfp));
                 len = (int)bufUsed(sshfp);
@@ -8412,6 +8422,7 @@ testRun(void)
                 ns_msg handle;
                 storageSftpNsInitparse(answer, len, &handle);
 
+#ifdef RES_TRUSTAD
                 // Check the RES_TRUSTAD flag
                 HEADER *dnsMsgHeader = (HEADER *)answer;
                 if ((dnsMsgHeader->ad) != 1)
@@ -8420,12 +8431,18 @@ testRun(void)
 
                     THROW_FMT(ServiceError, "Host is untrusted, RES_TRUSTAD not set in response");
                 }
+#endif // RES_TRUSTAD
 
                 // Check that the fingerprint is in the SSHFP list
                 TEST_RESULT_VOID(storageSftpVerifyFingerprint(this->session, handle), "Host key found in SSHFP record");
 
                 // Close the resolver
                 res_nclose(&my_res_state);
+
+#ifndef RES_TRUSTAD
+                LOG_DETAIL_FMT(
+                    "RES_TRUSTAD not supported on this OS, skipping trust_ad check for host '%s'", strZ(host));
+#endif // RES_TRUSTAD
             }
         }
         OBJ_NEW_END();
@@ -8446,8 +8463,14 @@ testRun(void)
             "P00 DETAIL: no sshfp fingerprint match found for sshfp.digest_type [2] hashType [2]"
             " 'ded38fadb5713bc6c772e788b5cc41223ca4072c'\n"
 #endif // LIBSSH2_HOSTKEY_HASH_SHA256
+#ifdef RES_TRUSTAD
             "P00 DETAIL: sshfp fingerprint match found for sshfp.digest_type [1] hashType [2]"
             " '87ac6bede384d2dc6254f396b83ed34856512e64'");
+#else
+            "P00 DETAIL: sshfp fingerprint match found for sshfp.digest_type [1] hashType [2]"
+            " '87ac6bede384d2dc6254f396b83ed34856512e64'\n"
+            "P00 DETAIL: RES_TRUSTAD not supported on this OS, skipping trust_ad check for host 'www.postgresql.org'");
+#endif // RES_TRUSTAD
 
         harnessLogLevelReset();
 #else
