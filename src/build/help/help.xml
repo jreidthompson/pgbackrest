@@ -1059,11 +1059,11 @@
                         <example>path</example>
                     </config-key>
 
-                    <config-key id="repo-sftp-require-trust-ad" name="SFTP Require Trust-Ad">
-                        <summary>SFTP require Trust-Ad.</summary>
+                    <config-key id="repo-sftp-require-sshfp" name="SFTP Require SSHFP">
+                        <summary>SFTP require SSHFP.</summary>
 
                         <text>
-                            <p>!!! TBD - Perform a minimal host verification via DNSSEC. This verification assumes that DNS resolution is configured to resolve to a DNS server that has been properly configured for DNSSEC and that the path between the host and the DNS server is secure. It queries the DNS server for the host and SSHFP records with RES_TRUSTAD (ad bit) set. If the response ad bit is not set, the host is not trusted. If the ad is is set a check will be made for a matching key in the SSHFP records.</p>
+                            <p>Perform a minimal host verification via DNSSEC SSHFP records. This verification assumes that DNS resolution is configured to resolve to a DNS server that has been properly configured for DNSSEC and that the path between the host and the DNS server is secure. If no match is found for the host fingerprint in the SSHFP records an error is thrown. If the OS supports RES_TRUSTAD, queries to the DNS server for SSHFP records will have the RES_TRUSTAD (ad bit) set and if the response ad bit is unset an error will be thrown.</p>
                         </text>
 
                         <default>n</default>

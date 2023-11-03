@@ -1134,7 +1134,7 @@ testRun(void)
                 .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
                 .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
-                .trustAd = cfgOptionIdxBool(cfgOptRepoSftpRequireTrustAd, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpRequireSshfp, repoIdx),
                 .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
             "new storage (defaults)");
         TEST_RESULT_LOG(
@@ -1145,7 +1145,7 @@ testRun(void)
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
 
         // -------------------------------------------------------------------------------------------------------------------------
-        TEST_TITLE("sftp session init success - add host to known_hosts file RSA, trustAd, res_nquery fail, shimmed");
+        TEST_TITLE("sftp session init success - add host to known_hosts file RSA, sshfp, res_nquery fail, shimmed");
 
         // Install shim for SFTP libresolv functions
         hrnSftpResolvShimInstall();
@@ -1192,7 +1192,7 @@ testRun(void)
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpRequireTrustAd, "y");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpRequireSshfp, "y");
         HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
 
@@ -1206,7 +1206,7 @@ testRun(void)
                 .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
                 .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
-                .trustAd = cfgOptionIdxBool(cfgOptRepoSftpRequireTrustAd, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpRequireSshfp, repoIdx),
                 .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
             ServiceError,
             "res_nquery error [4] No address associated with name 'no-data'");
@@ -1219,7 +1219,7 @@ testRun(void)
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
 
         // -------------------------------------------------------------------------------------------------------------------------
-        TEST_TITLE("sftp session init success - add host to known_hosts file RSA, trustAd fail");
+        TEST_TITLE("sftp session init success - add host to known_hosts file RSA, sshfp fail");
 
 #ifdef RES_TRUSTAD
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
@@ -1264,7 +1264,7 @@ testRun(void)
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpRequireTrustAd, "y");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpRequireSshfp, "y");
         HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
         TEST_ERROR(
@@ -1277,7 +1277,7 @@ testRun(void)
                 .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
                 .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
-                .trustAd = cfgOptionIdxBool(cfgOptRepoSftpRequireTrustAd, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpRequireSshfp, repoIdx),
                 .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
             ServiceError,
             "Host is untrusted, RES_TRUSTAD not set in response");
@@ -1291,7 +1291,7 @@ testRun(void)
 #endif // RES_TRUSTAD
 
         // -------------------------------------------------------------------------------------------------------------------------
-        TEST_TITLE("sftp session init success - add host to known_hosts file RSA, trustAd pass");
+        TEST_TITLE("sftp session init success - add host to known_hosts file RSA, sshfp pass");
 
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
         {
@@ -1339,7 +1339,7 @@ testRun(void)
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpRequireTrustAd, "y");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpRequireSshfp, "y");
         HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
         storageTest = NULL;
@@ -1355,7 +1355,7 @@ testRun(void)
                 .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
                 .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
-                .trustAd = cfgOptionIdxBool(cfgOptRepoSftpRequireTrustAd, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpRequireSshfp, repoIdx),
                 .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
             "new storage (defaults)");
 
@@ -1414,7 +1414,7 @@ testRun(void)
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpRequireTrustAd, "y");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpRequireSshfp, "y");
         HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
         TEST_ERROR(
@@ -1427,7 +1427,7 @@ testRun(void)
                 .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
                 .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
-                .trustAd = cfgOptionIdxBool(cfgOptRepoSftpRequireTrustAd, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpRequireSshfp, repoIdx),
                 .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
             ServiceError,
             "unable to initialize resolver");
@@ -1487,7 +1487,7 @@ testRun(void)
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpRequireTrustAd, "y");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpRequireSshfp, "y");
         HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
         storageTest = NULL;
@@ -8158,7 +8158,7 @@ testRun(void)
         harnessLogLevelSet(logLevelDetail);
 
         TimeMSec timeout = 500;
-        const StorageSftpNewParam param = {.trustAd = true};
+        const StorageSftpNewParam param = {.sshfp = true};
         // const String *host = STRDEF("muffat.debian.org");
         const String *host = STRDEF("www.postgresql.org");
         unsigned int port = 22;
@@ -8219,7 +8219,7 @@ testRun(void)
             if (rc != 0)
                 THROW_FMT(ServiceError, "libssh2 handshake failed [%d]", rc);
 
-            if (param.trustAd)
+            if (param.sshfp)
             {
                 if (storageSftpResNinit(&my_res_state) != 0)
                     THROW_FMT(ServiceError, "unable to initialize resolver");
@@ -8316,7 +8316,7 @@ testRun(void)
         harnessLogLevelSet(logLevelDetail);
 
         TimeMSec timeout = 500;
-        const StorageSftpNewParam param = {.trustAd = true};
+        const StorageSftpNewParam param = {.sshfp = true};
 
         // Configure a valid host so that we can successfully initialize the resolver
         const String *host = STRDEF("www.postgresql.org");
@@ -8378,7 +8378,7 @@ testRun(void)
             if (rc != 0)
                 THROW_FMT(ServiceError, "libssh2 handshake failed [%d]", rc);
 
-            if (param.trustAd)
+            if (param.sshfp)
             {
                 if (storageSftpResNinit(&my_res_state) != 0)
                     THROW_FMT(ServiceError, "unable to initialize resolver");

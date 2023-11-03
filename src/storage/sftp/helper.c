@@ -40,7 +40,7 @@ storageSftpHelper(const unsigned int repoIdx, const bool write, StoragePathExpre
                 .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
                 .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
-                .trustAd = cfgOptionIdxBool(cfgOptRepoSftpRequireTrustAd, repoIdx), .knownHosts = knownHosts);
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpRequireSshfp, repoIdx), .knownHosts = knownHosts);
         }
         MEM_CONTEXT_PRIOR_END();
     }

@@ -1224,7 +1224,7 @@ hostkey is returned in the SSHFP list. This is not a complete check but it is be
 the DNS server is properly configured for DNSSEC and the communication path between the host and the DNS server is secure.
 ***********************************************************************************************************************************/
 static void
-storageSftpTrustAd(StorageSftp *const this, const String *const host)
+storageSftpSshfp(StorageSftp *const this, const String *const host)
 {
     FUNCTION_LOG_BEGIN(logLevelDebug);
         FUNCTION_LOG_PARAM(STORAGE_SFTP, this);
@@ -1322,7 +1322,7 @@ storageSftpNew(
         FUNCTION_LOG_PARAM(STRING_LIST, param.knownHosts);
         FUNCTION_LOG_PARAM(MODE, param.modeFile);
         FUNCTION_LOG_PARAM(MODE, param.modePath);
-        FUNCTION_LOG_PARAM(BOOL, param.trustAd);
+        FUNCTION_LOG_PARAM(BOOL, param.sshfp);
         FUNCTION_LOG_PARAM(BOOL, param.write);
         FUNCTION_LOG_PARAM(FUNCTIONP, param.pathExpressionFunction);
     FUNCTION_LOG_END();
@@ -1540,8 +1540,8 @@ storageSftpNew(
             libssh2_knownhost_free(knownHostsList);
         }
 
-        if (param.trustAd)
-            storageSftpTrustAd(this, host);
+        if (param.sshfp)
+            storageSftpSshfp(this, host);
 
         // Perform public key authorization, expand leading tilde key file paths if needed
         String *const privKeyPath = regExpMatchOne(STRDEF("^ *~"), keyPriv) ? storageSftpExpandTildePath(keyPriv) : strDup(keyPriv);
