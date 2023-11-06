@@ -1098,6 +1098,7 @@ storageSftpSetOption(res_state statep, uint32_t option)
 
     FUNCTION_LOG_RETURN_VOID();
 }
+
 #endif // RES_TRUSTAD
 
 /**********************************************************************************************************************************/

@@ -8453,7 +8453,6 @@ testRun(void)
 
                 // Close the resolver
                 res_nclose(&my_res_state);
-
             }
         }
         OBJ_NEW_END();
