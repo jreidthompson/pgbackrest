@@ -19,8 +19,6 @@ SFTP Storage
 
 #include <resolv.h>
 
-// jrt !!! remove netdb.h, et al if not needed after testing/dev
-// !!! jrt is this viable/acceptable
 #ifndef __USE_MISC
 #define __USE_MISC                                                  1
 #endif
@@ -54,7 +52,6 @@ struct StorageSftp
     TimeMSec timeout;                                               // Session timeout
 };
 
-// jrt !!! should this be in StorageSftp above?
 // Initialize the resolver
 struct __res_state my_res_state = {0};
 
@@ -1085,6 +1082,7 @@ storageSftpPathRemove(THIS_VOID, const String *const path, const bool recurse, c
 }
 
 /**********************************************************************************************************************************/
+#ifdef RES_TRUSTAD
 static void
 storageSftpSetOption(res_state statep, uint32_t option)
 {
@@ -1094,14 +1092,13 @@ storageSftpSetOption(res_state statep, uint32_t option)
     FUNCTION_LOG_END();
 
     ASSERT(statep != NULL);
-#ifdef RES_TRUSTAD
     ASSERT(option >= RES_INIT && option <= RES_TRUSTAD);
-#endif // RES_TRUSTAD
 
     statep->options |= option;
 
     FUNCTION_LOG_RETURN_VOID();
 }
+#endif // RES_TRUSTAD
 
 /**********************************************************************************************************************************/
 static int
@@ -1161,15 +1158,16 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
 
     bool result = false;
 
+    // Check the sshfp resource records for a fingerprint match
     for (int rrnum = 0; rrnum < ns_msg_count(handle, ns_s_an); rrnum++)
     {
         ns_rr rr;
 
+        // Parse the resource record
         ns_parserr(&handle, ns_s_an, rrnum, &rr);
 
         typedef struct rdata_sshfp
         {
-            unsigned algorithm : 8;
             unsigned digest_type : 8;
             unsigned char *digest;
         } rdata_sshfp_t;
@@ -1219,9 +1217,10 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
 }
 
 /***********************************************************************************************************************************
-Perform minimal DNS verification on the host. Queries with RES_TRUSTAD and verifies that response is RES_TRUSTAD. Checks that the
-hostkey is returned in the SSHFP list. This is not a complete check but it is better than nothing. It is predicated on the fact that
-the DNS server is properly configured for DNSSEC and the communication path between the host and the DNS server is secure.
+Perform minimal DNS verification on the host. Queries with RES_TRUSTAD if supported and verifies that response is RES_TRUSTAD.
+Checks that the hostkey is returned in the SSHFP list. This is not a complete check but it is better than nothing. It is predicated
+on the fact that the DNS server is properly configured for DNSSEC and the communication path between the host and the DNS server is
+secure.
 ***********************************************************************************************************************************/
 static void
 storageSftpSshfp(StorageSftp *const this, const String *const host)
@@ -1247,8 +1246,8 @@ storageSftpSshfp(StorageSftp *const this, const String *const host)
     int len = storageSftpResNquery(&my_res_state, strZ(host), C_IN, T_SSHFP, answer, sizeof(answer));
 
     // Check for errors.
-    // This is dependent on keeping the __USE_MISC for netdb.h. We can drop it and rewrite to a generic error if we think that's
-    // better.
+    // Error msg is dependent on keeping the __USE_MISC for netdb.h. We can drop it and rewrite to a generic error if we think
+    // that's better.
     if (len < 0)
     {
         // Closing before throwing the error does not seem to mess up the hstrerror() call
@@ -1258,10 +1257,6 @@ storageSftpSshfp(StorageSftp *const this, const String *const host)
             ServiceError,
             "res_nquery error [%d] %s '%s'", my_res_state.res_h_errno, hstrerror(my_res_state.res_h_errno), strZ(host));
     }
-
-    // Initialize parsing the response
-    ns_msg handle;
-    storageSftpNsInitparse(answer, len, &handle);
 
 #ifdef RES_TRUSTAD
     // Check the RES_TRUSTAD flag
@@ -1274,16 +1269,20 @@ storageSftpSshfp(StorageSftp *const this, const String *const host)
     }
 #endif // RES_TRUSTAD
 
+#ifndef RES_TRUSTAD
+    LOG_DETAIL_FMT(
+        "RES_TRUSTAD not supported on this OS, skipping trust_ad check for host '%s'", strZ(host));
+#endif // RES_TRUSTAD
+
+    // Initialize parsing the response
+    ns_msg handle;
+    storageSftpNsInitparse(answer, len, &handle);
+
     // Check that the fingerprint is in the SSHFP list
     storageSftpVerifyFingerprint(this->session, handle);
 
     // Close the resolver
     res_nclose(&my_res_state);
-
-#ifndef RES_TRUSTAD
-    LOG_DETAIL_FMT(
-        "RES_TRUSTAD not supported on this OS, skipping trust_ad check for host '%s'", strZ(host));
-#endif // RES_TRUSTAD
 
     FUNCTION_LOG_RETURN_VOID();
 }

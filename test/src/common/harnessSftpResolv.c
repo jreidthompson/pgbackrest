@@ -7,12 +7,6 @@ Harness for SFTP libresolv Testing
 #include "common/harnessDebug.h"
 #include "common/harnessSftpResolv.h"
 
-#include <arpa/nameser.h>
-#ifndef __USE_MISC
-#define __USE_MISC                                                  1
-#endif
-#include <netdb.h>
-
 /***********************************************************************************************************************************
 Include shimmed C modules
 ***********************************************************************************************************************************/
@@ -70,6 +64,7 @@ storageSftpResNquery(res_state statep, const char *dname, int class, int type, u
 
     int result;
 
+    // Avoid compiler complaining of unused params
     (void)statep;
     (void)dname;
     (void)class;
@@ -79,20 +74,24 @@ storageSftpResNquery(res_state statep, const char *dname, int class, int type, u
 
     if (hrnSftpResolvStatic.localShimSftpResolv)
     {
+        // Overlay HEADER onto the answer buffer
         HEADER *header = (HEADER *)answer;
 
         if (strcmp(dname, "trustad-fail") == 0)
         {
+            // Unset the ad flag to indicate that the answer is not authenticated
             result = 0;
             header->ad = 0;
         }
         else if (strcmp(dname, "trustad-pass") == 0 || strcmp(dname, "localhost") == 0)
         {
+            // Set the ad flag to indicate that the answer is authenticated
             result = 1;
             header->ad = 1;
         }
         else
         {
+            // Return an error
             result = -1;
             statep->res_h_errno = NO_DATA;
             header->ad = 0;
@@ -121,6 +120,7 @@ storageSftpNsInitparse(const unsigned char *answer, int len, ns_msg *handle)
 
     if (hrnSftpResolvStatic.localShimSftpResolv)
     {
+        // Use the incoming len from the test call to determine the result
         switch (len)
         {
             case 0:
@@ -153,6 +153,7 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
 
     if (hrnSftpResolvStatic.localShimSftpResolv)
     {
+        // Do nothing
     }
     else
         storageSftpVerifyFingerprint_SHIMMED(session, handle);
