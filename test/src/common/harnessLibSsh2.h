@@ -127,7 +127,6 @@ typedef struct HrnLibSsh2
     size_t len;                                                     // libssh2_session_hostkey len
     int type;                                                       // libssh2_session_hostkey type
     char *errMsg;                                                   // libssh2_session_last_error error msg
-    unsigned char fingerPrint[1024];                                // binary finger print
 } HrnLibSsh2;
 
 /***********************************************************************************************************************************

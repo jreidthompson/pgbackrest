@@ -8332,6 +8332,10 @@ testRun(void)
         const String *host = STRDEF("www.postgresql.org");
         unsigned int port = 22;
 
+        // Create binary representation of the host key that will generate a successful match
+        unsigned char fingperprint[1024];
+        decodeToBin(encodingHex, "87ac6bede384d2dc6254f396b83ed34856512e64", fingperprint);
+
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
         {
             {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = 0},
@@ -8348,7 +8352,7 @@ testRun(void)
 #else
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultNull = true},
 #endif // LIBSSH2_HOSTKEY_HASH_SHA256
-            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "87ac6bede384d2dc6254f396b83ed34856512e64"},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = (char *)fingperprint},
             {.function = NULL},
         });
 
