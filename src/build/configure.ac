@@ -21,6 +21,8 @@ case $host_os in
         ;;
 
     linux*)
+        AC_SUBST(CPPFLAGS, "${CPPFLAGS} -D_DEFAULT_SOURCE")
+        AC_SUBST(CPPFLAGS, "${CPPFLAGS} -D_BSD_SOURCE")
         AC_SUBST(CPPFLAGS, "${CPPFLAGS} -D_POSIX_C_SOURCE=200809L")
         ;;
 esac

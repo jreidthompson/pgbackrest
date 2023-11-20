@@ -8237,7 +8237,7 @@ testRun(void)
                 int len = storageSftpResNquery(&my_res_state, strZ(host), C_IN, T_SSHFP, answer, sizeof(answer));
 
                 // Check for errors.
-                // This is dependent on keeping the __USE_MISC for netdb.h. We can drop it and rewrite to a generic error if we
+                // This is dependent on keeping the _DEFAULT_SOURCE for netdb.h. We can drop it and rewrite to a generic error if we
                 // think that's better.
                 if (len < 0)
                 {
@@ -8408,7 +8408,7 @@ testRun(void)
                 int len = storageSftpResNquery(&my_res_state, strZ(host), C_IN, T_SSHFP, answer, sizeof(answer));
 
                 // Check for errors.
-                // This is dependent on keeping the __USE_MISC for netdb.h. We can drop it and rewrite to a generic error if we
+                // This is dependent on keeping the _DEFAULT_SOURCE for netdb.h. We can drop it and rewrite to a generic error if we
                 // think that's better.
                 if (len < 0)
                 {

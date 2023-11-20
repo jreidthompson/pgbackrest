@@ -5,6 +5,9 @@ SFTP Storage
 
 #ifdef HAVE_LIBSSH2
 
+#include <netdb.h>
+#include <resolv.h>
+
 #include "common/crypto/hash.h"
 #include "common/debug.h"
 #include "common/io/fd.h"
@@ -16,13 +19,6 @@ SFTP Storage
 #include "storage/sftp/read.h"
 #include "storage/sftp/storage.intern.h"
 #include "storage/sftp/write.h"
-
-#include <resolv.h>
-
-#ifndef __USE_MISC
-#define __USE_MISC                                                  1
-#endif
-#include <netdb.h>
 
 /***********************************************************************************************************************************
 Define PATH_MAX if it is not defined
@@ -1247,7 +1243,7 @@ storageSftpSshfp(StorageSftp *const this, const String *const host)
     int len = storageSftpResNquery(&my_res_state, strZ(host), C_IN, T_SSHFP, answer, sizeof(answer));
 
     // Check for errors.
-    // Error msg is dependent on keeping the __USE_MISC for netdb.h. We can drop it and rewrite to a generic error if we think
+    // Error msg is dependent on keeping the _DEFAULT_SOURCE for netdb.h. We can drop it and rewrite to a generic error if we think
     // that's better.
     if (len < 0)
     {
