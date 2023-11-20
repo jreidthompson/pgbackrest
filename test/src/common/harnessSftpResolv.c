@@ -3,6 +3,8 @@ Harness for SFTP libresolv Testing
 ***********************************************************************************************************************************/
 #include "build.auto.h"
 
+#include <resolv.h>
+
 #include "common/harnessConfig.h"
 #include "common/harnessDebug.h"
 #include "common/harnessSftpResolv.h"
@@ -35,7 +37,7 @@ storageSftpResNinit(res_state statep)
     if (hrnSftpResolvStatic.localShimSftpResolv)
     {
         // Use the RES_IGNTC option indicate when to return a failure
-        if ((my_res_state.options & RES_IGNTC) == RES_IGNTC)
+        if ((statep->options & RES_IGNTC) == RES_IGNTC)
             result = -1;
         else
             result = 0;
