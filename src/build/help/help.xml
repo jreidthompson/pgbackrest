@@ -1063,7 +1063,7 @@
                         <summary>SFTP require SSHFP.</summary>
 
                         <text>
-                            <p>Perform a minimal host verification via DNSSEC SSHFP records. This verification assumes that DNS resolution is configured to resolve to a DNS server that has been properly configured for DNSSEC and that the path between the host and the DNS server is secure. If no match is found for the host fingerprint in the SSHFP records an error is thrown. If the OS supports RES_TRUSTAD, queries to the DNS server for SSHFP records will have the RES_TRUSTAD (ad bit) set and if the response ad bit is unset an error will be thrown.</p>
+                            <p>Perform a fingerprint verification via SSHFP records. This assumes that DNS resolution is configured to resolve to a DNS server that has been properly configured for DNSSEC and that the path between the host and the DNS server is secure. If no match is found for the host fingerprint in the SSHFP records an error is thrown. If the OS supports RES_TRUSTAD, the SSHFP query will have the RES_TRUSTAD (ad) flag set and if the response ad flag is unset an error will be thrown.</p>
                         </text>
 
                         <default>n</default>
