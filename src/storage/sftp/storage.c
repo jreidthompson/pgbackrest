@@ -1092,7 +1092,7 @@ storageSftpResNinit(res_state statep)
 
 /**********************************************************************************************************************************/
 static int
-storageSftpResNquery(res_state statep, const char *dname, int class, int type, unsigned char *answer, int anslen)
+storageSftpResNquery(res_state statep, const char *dname, const int class, const int type, unsigned char *answer, const int anslen)
 {
     FUNCTION_LOG_BEGIN(logLevelTrace);
         FUNCTION_LOG_PARAM(VOID, statep);
@@ -1127,7 +1127,7 @@ storageSftpNsInitparse(const unsigned char *answer, int len, ns_msg *handle)
 /**********************************************************************************************************************************/
 #ifdef RES_TRUSTAD
 static void
-storageSftpSetOption(res_state statep, uint32_t option)
+storageSftpSetOption(res_state statep, const uint32_t option)
 {
     FUNCTION_LOG_BEGIN(logLevelTrace);
         FUNCTION_LOG_PARAM(VOID, statep);
@@ -1163,47 +1163,39 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
         // Parse the resource record
         ns_parserr(&handle, ns_s_an, rrnum, &rr);
 
-        typedef struct rdata_sshfp
-        {
-            unsigned digest_type : 8;
-            unsigned char *digest;
-        } rdata_sshfp_t;
+        const uint8_t digest_type = *((unsigned char *) ns_rr_rdata(rr) + 1);
+        const unsigned char *digest = (unsigned char *) ns_rr_rdata(rr) + 2;
 
-        rdata_sshfp_t sshfp;
-
-        sshfp.digest_type = *((unsigned char *) ns_rr_rdata(rr) + 1);
-        sshfp.digest = (unsigned char *) ns_rr_rdata(rr) + 2;
-
-        // Only SHA1 and SHA256 are currently defined as valid SSHFP RR types for fingerprint types
+        // Only SHA1 and SHA256 are currently defined as valid SSHFP RR types for fingerprint types, default to sha1
         int hashType = LIBSSH2_HOSTKEY_HASH_SHA1;
         size_t hashSize = HASH_TYPE_SHA1_SIZE;
 
-        // Newer versions of libssh2 support SHA256
+        // Newer versions of libssh2 support SHA256, check for it
 #ifdef LIBSSH2_HOSTKEY_HASH_SHA256
-        if (sshfp.digest_type == 2)
+        if (digest_type == 2)
         {
             hashType = LIBSSH2_HOSTKEY_HASH_SHA256;
             hashSize = HASH_TYPE_SHA256_SIZE;
         }
 #endif // LIBSSH2_HOSTKEY_HASH_SHA256
 
-        // Generate hex encoded sshfp.digest
+        // Generate hex encoded sshfp digest
         char buffer[256];
-        encodeToStr(encodingHex, sshfp.digest, hashSize, buffer);
+        encodeToStr(encodingHex, digest, hashSize, buffer);
 
+        // Compare the fingerprints
         const char *binaryFingerprint = libssh2_hostkey_hash(session, hashType);
 
-        if (binaryFingerprint != NULL && memcmp(binaryFingerprint, sshfp.digest, (size_t)ns_rr_rdlen(rr) - 2) == 0)
+        if (binaryFingerprint != NULL && memcmp(binaryFingerprint, digest, (size_t)ns_rr_rdlen(rr) - 2) == 0)
         {
             result = true;
             LOG_DETAIL_FMT(
-                "sshfp fingerprint match found for sshfp.digest_type [%d] hashType [%d] '%s'", sshfp.digest_type, hashType, buffer);
+                "sshfp fingerprint match found for sshfp digest_type [%d] hashType [%d] '%s'", digest_type, hashType, buffer);
         }
         else
         {
             LOG_DETAIL_FMT(
-                "no sshfp fingerprint match found for sshfp.digest_type [%d] hashType [%d] '%s'", sshfp.digest_type, hashType,
-                buffer);
+                "no sshfp fingerprint match found for sshfp digest_type [%d] hashType [%d] '%s'", digest_type, hashType, buffer);
         }
     }
 
@@ -1267,8 +1259,7 @@ storageSftpSshfp(StorageSftp *const this, const String *const host)
 #endif // RES_TRUSTAD
 
 #ifndef RES_TRUSTAD
-    LOG_DETAIL_FMT(
-        "RES_TRUSTAD not supported on this OS, skipping trust_ad check for host '%s'", strZ(host));
+    LOG_DETAIL_FMT("RES_TRUSTAD not supported on this OS, skipping trust_ad check for host '%s'", strZ(host));
 #endif // RES_TRUSTAD
 
     // Initialize parsing the response
@@ -1536,6 +1527,7 @@ storageSftpNew(
             libssh2_knownhost_free(knownHostsList);
         }
 
+        // Check for matching SSHFP fingerprint if requested
         if (param.sshfp)
             storageSftpSshfp(this, host);
 

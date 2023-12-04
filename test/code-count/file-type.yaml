@@ -2747,6 +2747,14 @@ test/src/common/harnessInfo.h:
   class: test/harness
   type: c/h
 
+test/src/common/harnessLibSsh2.c:
+  class: test/harness
+  type: c
+
+test/src/common/harnessLibSsh2.h:
+  class: test/harness
+  type: c/h
+
 test/src/common/harnessLock.c:
   class: test/harness
   type: c

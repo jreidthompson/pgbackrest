@@ -3415,6 +3415,7 @@ case $host_os in
         ;;
 
     linux*)
+        # DEFAULT_SOURCE AND BSD_SOURCE can be removed when support for RHEL7 is dropped
         CPPFLAGS="${CPPFLAGS} -D_DEFAULT_SOURCE"
 
         CPPFLAGS="${CPPFLAGS} -D_BSD_SOURCE"
@@ -5814,4 +5815,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
-# Generated from src/build/configure.ac sha1 726febc0d6c2b8bd149996fbc38be528a622c65b
+# Generated from src/build/configure.ac sha1 aab922c9c49b9c602e583d6046182a006f37058e

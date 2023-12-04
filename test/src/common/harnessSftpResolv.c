@@ -38,7 +38,7 @@ storageSftpResNinit(res_state statep)
 
     if (hrnSftpResolvStatic.localShimSftpResolv)
     {
-        // Use the RES_IGNTC option indicate when to return a failure
+        // Use the RES_IGNTC option to indicate when to return a failure
         if ((statep->options & RES_IGNTC) == RES_IGNTC)
             result = -1;
         else
@@ -157,7 +157,7 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
 
     if (hrnSftpResolvStatic.localShimSftpResolv)
     {
-        // Do nothing
+        // Do nothing, storageSftpVerifyFingerprint has its own tests in sftpTest.c
     }
     else
         storageSftpVerifyFingerprint_SHIMMED(session, handle);

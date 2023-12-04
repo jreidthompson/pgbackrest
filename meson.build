@@ -30,6 +30,8 @@ cc = meson.get_compiler('c')
 # OS-specific settings
 ####################################################################################################################################
 if host_machine.system() == 'linux'
+    # BSD_SOURCE can be removed when support for RHEL7 is dropped,
+    # DEFAULT_SOURCE can be removed when support for RHEL7 is dropped if we rewrite an hstrerror() to a generic error message
     add_global_arguments('-D_DEFAULT_SOURCE', language : 'c')
     add_global_arguments('-D_BSD_SOURCE', language : 'c')
     add_global_arguments('-D_POSIX_C_SOURCE=200809L', language : 'c')
