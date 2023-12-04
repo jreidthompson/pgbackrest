@@ -3408,6 +3408,9 @@ case $host_os in *\ *) host_os=`echo "$host_os" | sed 's/ /-/g'`;; esac
 CFLAGS="${CFLAGS} -std=c99"
 
 
+# BSD_SOURCE can be removed when support for RHEL7 is dropped
+# DEFAULT_SOURCE can be removed when support for RHEL7 is dropped if we rewrite an hstrerror call to a generic error message
+# ----------------------------------------------------------------------------------------------------------------------------------
 case $host_os in
     darwin*)
         CPPFLAGS="${CPPFLAGS} -D_DARWIN_C_SOURCE"
@@ -3415,8 +3418,6 @@ case $host_os in
         ;;
 
     linux*)
-        # BSD_SOURCE can be removed when support for RHEL7 is dropped
-        # DEFAULT_SOURCE can be removed when support for RHEL7 is dropped if we rewrite an hstrerror() to a generic error message
         CPPFLAGS="${CPPFLAGS} -D_DEFAULT_SOURCE"
 
         CPPFLAGS="${CPPFLAGS} -D_BSD_SOURCE"
@@ -5816,4 +5817,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
-# Generated from src/build/configure.ac sha1 f93bba2632ca0e0760cf8a014c5d2b886e786c56
+# Generated from src/build/configure.ac sha1 cfd720d55bc80b062a2ab12dd227d679997f737e

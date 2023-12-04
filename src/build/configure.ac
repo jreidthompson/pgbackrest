@@ -15,14 +15,15 @@ AC_PROG_CC
 AC_CANONICAL_HOST
 AC_SUBST(CFLAGS, "${CFLAGS} -std=c99")
 
+# BSD_SOURCE can be removed when support for RHEL7 is dropped
+# DEFAULT_SOURCE can be removed when support for RHEL7 is dropped if we rewrite an hstrerror call to a generic error message
+# ----------------------------------------------------------------------------------------------------------------------------------
 case $host_os in
     darwin*)
         AC_SUBST(CPPFLAGS, "${CPPFLAGS} -D_DARWIN_C_SOURCE")
         ;;
 
     linux*)
-# BSD_SOURCE can be removed when support for RHEL7 is dropped
-# DEFAULT_SOURCE can be removed when support for RHEL7 is dropped if we rewrite an hstrerror call to a generic error message
         AC_SUBST(CPPFLAGS, "${CPPFLAGS} -D_DEFAULT_SOURCE")
         AC_SUBST(CPPFLAGS, "${CPPFLAGS} -D_BSD_SOURCE")
         AC_SUBST(CPPFLAGS, "${CPPFLAGS} -D_POSIX_C_SOURCE=200809L")
