@@ -178,7 +178,7 @@ if lib_ssh2.found()
     configuration.set('HAVE_LIBSSH2', true, description: 'Is libssh2 present?')
 endif
 
-lib_resolv = false
+lib_resolv = dependency('libssh2', required: false)
 if host_machine.system() == 'linux'
     # Find libresolv library
     lib_resolv = cc.find_library('resolv')
