@@ -131,12 +131,15 @@ AC_CHECK_LIB(
 
 # Check optional resolv library if we have libssh2
 # ----------------------------------------------------------------------------------------------------------------------------------
-if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
-then
-    AC_CHECK_LIB([resolv], [ns_initparse], [], [AC_MSG_ERROR([library 'resolv' is required])])
-    AC_CHECK_HEADER(resolv.h, [], [AC_MSG_ERROR([header file <resolv.h> is required])])
-fi
-
+case $host_os in
+    linux*)
+        if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
+        then
+            AC_CHECK_LIB([resolv], [ns_initparse], [], [AC_MSG_ERROR([library 'resolv' is required])])
+            AC_CHECK_HEADER(resolv.h, [], [AC_MSG_ERROR([header file <resolv.h> is required])])
+        fi
+        ;;
+esac
 
 # Check optional zst library. Ignore any versions below 1.0.
 # ----------------------------------------------------------------------------------------------------------------------------------
