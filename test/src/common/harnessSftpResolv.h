@@ -5,6 +5,8 @@ Harness for SFTP libresolv Testing
 /***********************************************************************************************************************************
 Functions
 ***********************************************************************************************************************************/
+#ifdef HAVE_LIBSSH2
 // Install/uninstall shim
 void hrnSftpResolvShimInstall(void);
 void hrnSftpResolvShimUninstall(void);
+#endif // HAVE_LIBSSH2

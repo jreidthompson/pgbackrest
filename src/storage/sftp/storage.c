@@ -1078,26 +1078,6 @@ storageSftpPathRemove(THIS_VOID, const String *const path, const bool recurse, c
 }
 
 /**********************************************************************************************************************************/
-#ifdef RES_TRUSTAD
-static void
-storageSftpSetOption(res_state statep, uint32_t option)
-{
-    FUNCTION_LOG_BEGIN(logLevelTrace);
-        FUNCTION_LOG_PARAM(VOID, statep);
-        FUNCTION_LOG_PARAM(UINT64, option);
-    FUNCTION_LOG_END();
-
-    ASSERT(statep != NULL);
-    ASSERT(option >= RES_INIT && option <= RES_TRUSTAD);
-
-    statep->options |= option;
-
-    FUNCTION_LOG_RETURN_VOID();
-}
-
-#endif // RES_TRUSTAD
-
-/**********************************************************************************************************************************/
 static int
 storageSftpResNinit(res_state statep)
 {
@@ -1143,6 +1123,26 @@ storageSftpNsInitparse(const unsigned char *answer, int len, ns_msg *handle)
 
     FUNCTION_LOG_RETURN(INT, ns_initparse(answer, len, handle));
 }
+
+/**********************************************************************************************************************************/
+#ifdef RES_TRUSTAD
+static void
+storageSftpSetOption(res_state statep, uint32_t option)
+{
+    FUNCTION_LOG_BEGIN(logLevelTrace);
+        FUNCTION_LOG_PARAM(VOID, statep);
+        FUNCTION_LOG_PARAM(UINT64, option);
+    FUNCTION_LOG_END();
+
+    ASSERT(statep != NULL);
+    ASSERT(option >= RES_INIT && option <= RES_TRUSTAD);
+
+    statep->options |= option;
+
+    FUNCTION_LOG_RETURN_VOID();
+}
+
+#endif // RES_TRUSTAD
 
 /**********************************************************************************************************************************/
 static void

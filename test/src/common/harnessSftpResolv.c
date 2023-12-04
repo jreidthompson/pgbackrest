@@ -3,6 +3,8 @@ Harness for SFTP libresolv Testing
 ***********************************************************************************************************************************/
 #include "build.auto.h"
 
+#ifdef HAVE_LIBSSH2
+
 #include <resolv.h>
 
 #include "common/harnessConfig.h"
@@ -182,3 +184,5 @@ hrnSftpResolvShimUninstall(void)
 
     FUNCTION_HARNESS_RETURN_VOID();
 }
+
+#endif // HAVE_LIBSSH2
