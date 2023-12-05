@@ -5,8 +5,8 @@ SFTP Storage
 
 #ifdef HAVE_LIBSSH2
 
-#include <netinet/in.h>
 #include <netdb.h>
+#include <netinet/in.h>
 #include <resolv.h>
 
 #include "common/crypto/hash.h"

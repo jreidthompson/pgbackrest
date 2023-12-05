@@ -5,6 +5,7 @@ Harness for SFTP libresolv Testing
 
 #ifdef HAVE_LIBSSH2
 
+#include <netinet/in.h>
 #include <resolv.h>
 
 #include "common/harnessConfig.h"
