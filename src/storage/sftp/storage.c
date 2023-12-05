@@ -36,13 +36,6 @@ Define PACKET_SZ if it is not defined
 #endif
 
 /***********************************************************************************************************************************
-Define T_SSHFP if it is not defined
-***********************************************************************************************************************************/
-#ifndef T_SSHFP
-#define T_SSHFP                                                     ns_t_sshfp
-#endif
-
-/***********************************************************************************************************************************
 Object type
 ***********************************************************************************************************************************/
 struct StorageSftp
@@ -1240,7 +1233,7 @@ storageSftpSshfp(StorageSftp *const this, const String *const host)
     // Query the server for SSHFP records
     unsigned char answer[PACKET_SZ];
 
-    int len = storageSftpResNquery(&my_res_state, strZ(host), C_IN, T_SSHFP, answer, sizeof(answer));
+    int len = storageSftpResNquery(&my_res_state, strZ(host), C_IN, ns_t_sshfp, answer, sizeof(answer));
 
     // Check for errors.
     // Error msg is dependent on keeping the _DEFAULT_SOURCE for netdb.h. We can drop it and rewrite to a generic error if we think
