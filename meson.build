@@ -182,8 +182,13 @@ lib_resolv = dependency('libresolv', required: false)
 if host_machine.system() == 'linux'
     # Find libresolv library
     lib_resolv = cc.find_library('resolv')
+
     if lib_ssh2.found() and not lib_resolv.found()
         error('libssh2 requires libresolv')
+    endif
+
+    if lib_ssh2.found()
+        configuration.set('HAVE_LIBRESOLV', true, description: 'Is libresolv present?')
     endif
 endif
 
