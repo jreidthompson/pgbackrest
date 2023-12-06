@@ -4194,11 +4194,9 @@ fi
 
 # Check optional resolv library if we have libssh2
 # ----------------------------------------------------------------------------------------------------------------------------------
-case $host_os in
-    linux*)
-        if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
-        then
-            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for ns_initparse in -lresolv" >&5
+if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
+then
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for ns_initparse in -lresolv" >&5
 printf %s "checking for ns_initparse in -lresolv... " >&6; }
 if test ${ac_cv_lib_resolv_ns_initparse+y}
 then :
@@ -4243,7 +4241,7 @@ else $as_nop
   as_fn_error $? "library 'resolv' is required" "$LINENO" 5
 fi
 
-            ac_fn_c_check_header_compile "$LINENO" "resolv.h" "ac_cv_header_resolv_h" "$ac_includes_default"
+    ac_fn_c_check_header_compile "$LINENO" "resolv.h" "ac_cv_header_resolv_h" "$ac_includes_default"
 if test "x$ac_cv_header_resolv_h" = xyes
 then :
   printf "%s\n" "#define HAVE_LIBRESOLV 1" >>confdefs.h
@@ -4253,9 +4251,7 @@ else $as_nop
   as_fn_error $? "header file <resolv.h> is required" "$LINENO" 5
 fi
 
-        fi
-        ;;
-esac
+fi
 
 # Check optional zst library. Ignore any versions below 1.0.
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -5822,4 +5818,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
-# Generated from src/build/configure.ac sha1 301025f8d21b2aa972fbb5b17bab2d21d59d7531
+# Generated from src/build/configure.ac sha1 5f027042c071c103e757b0d3c6406cf21c5824e3
