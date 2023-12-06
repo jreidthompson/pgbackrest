@@ -4192,7 +4192,7 @@ fi
 fi
 
 
-# Check optional resolv library if we have libssh2
+# Check for optional resolv library, required if we have libssh2
 # ----------------------------------------------------------------------------------------------------------------------------------
 if [ ${host_os%%[0-9]*} != "freebsd" ]
 then
@@ -5821,4 +5821,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
-# Generated from src/build/configure.ac sha1 59998969e730d711550fb2d2fa83a2de07c7bf8d
+# Generated from src/build/configure.ac sha1 5abff83db3e7f884359086cce1e4ecd8e3ce41f0
