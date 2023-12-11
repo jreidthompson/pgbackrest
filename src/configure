@@ -4194,65 +4194,65 @@ fi
 
 # Check for optional resolv library if we have libssh2
 # ----------------------------------------------------------------------------------------------------------------------------------
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing resolv" >&5
-printf %s "checking for library containing resolv... " >&6; }
-if test ${ac_cv_search_resolv+y}
+if [ ${host_os%%[0-9]*} != "freebsd" ]
+then
+    if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
+    then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for ns_initparse in -lresolv" >&5
+printf %s "checking for ns_initparse in -lresolv... " >&6; }
+if test ${ac_cv_lib_resolv_ns_initparse+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
-  ac_func_search_save_LIBS=$LIBS
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lresolv  $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
 /* Override any GCC internal prototype to avoid an error.
    Use char because int might match the return type of a GCC
    builtin and then its argument prototype would still apply.  */
-char resolv ();
+char ns_initparse ();
 int
 main (void)
 {
-return resolv ();
+return ns_initparse ();
   ;
   return 0;
 }
 _ACEOF
-for ac_lib in '' ns_initparse
-do
-  if test -z "$ac_lib"; then
-    ac_res="none required"
-  else
-    ac_res=-l$ac_lib
-    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
-  fi
-  if ac_fn_c_try_link "$LINENO"
+if ac_fn_c_try_link "$LINENO"
 then :
-  ac_cv_search_resolv=$ac_res
+  ac_cv_lib_resolv_ns_initparse=yes
+else $as_nop
+  ac_cv_lib_resolv_ns_initparse=no
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam \
-    conftest$ac_exeext
-  if test ${ac_cv_search_resolv+y}
-then :
-  break
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
 fi
-done
-if test ${ac_cv_search_resolv+y}
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_resolv_ns_initparse" >&5
+printf "%s\n" "$ac_cv_lib_resolv_ns_initparse" >&6; }
+if test "x$ac_cv_lib_resolv_ns_initparse" = xyes
 then :
+  printf "%s\n" "#define HAVE_LIBRESOLV 1" >>confdefs.h
+
+  LIBS="-lresolv $LIBS"
+
+fi
+
+        ac_fn_c_check_header_compile "$LINENO" "resolv.h" "ac_cv_header_resolv_h" "$ac_includes_default"
+if test "x$ac_cv_header_resolv_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_LIBRESOLV 1" >>confdefs.h
+ LIBS="${LIBS} -lresolv"
 
 else $as_nop
-  ac_cv_search_resolv=no
-fi
-rm conftest.$ac_ext
-LIBS=$ac_func_search_save_LIBS
-fi
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_resolv" >&5
-printf "%s\n" "$ac_cv_search_resolv" >&6; }
-ac_res=$ac_cv_search_resolv
-if test "$ac_res" != no
-then :
-  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-
+  as_fn_error $? "header file <resolv.h> is required" "$LINENO" 5
 fi
 
+    fi
+fi
 
 # Check optional zst library. Ignore any versions below 1.0.
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -5819,4 +5819,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
-# Generated from src/build/configure.ac sha1 5388a0b7f822bc4419415b75f1a766ea7fbe6e0e
+# Generated from src/build/configure.ac sha1 c5d742711c204f7c8faaaae0134095b38b49412b
