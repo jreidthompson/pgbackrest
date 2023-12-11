@@ -4194,11 +4194,7 @@ fi
 
 # Check for optional resolv library if we have libssh2
 # ----------------------------------------------------------------------------------------------------------------------------------
-#if [[ ${host_os%%[0-9]*} != "freebsd" ]]
-#then
-#    if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
-#    then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing resolv" >&5
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing resolv" >&5
 printf %s "checking for library containing resolv... " >&6; }
 if test ${ac_cv_search_resolv+y}
 then :
@@ -4257,8 +4253,6 @@ then :
 
 fi
 
-#    fi
-#fi
 
 # Check optional zst library. Ignore any versions below 1.0.
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -5825,4 +5819,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
-# Generated from src/build/configure.ac sha1 b0cd3995489a1f085dc72b4b82a755747a7cae2c
+# Generated from src/build/configure.ac sha1 5388a0b7f822bc4419415b75f1a766ea7fbe6e0e
