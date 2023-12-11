@@ -8280,9 +8280,9 @@ testRun(void)
 
         TEST_RESULT_LOG(
 #ifndef RES_TRUSTAD
-                "P00 DETAIL: RES_TRUSTAD not supported on this OS, skipping trust_ad check for host 'www.postgresql.org'\n"
+            "P00 DETAIL: RES_TRUSTAD not supported on this OS, skipping trust_ad check for host 'www.postgresql.org'\n"
 #endif // RES_TRUSTAD
-                "P00   WARN: no SSHFP records for host found in DNS");
+            "P00   WARN: no SSHFP records for host found in DNS");
 
         harnessLogLevelReset();
 #else
