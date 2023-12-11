@@ -1059,11 +1059,11 @@
                         <example>path</example>
                     </config-key>
 
-                    <config-key id="repo-sftp-require-sshfp" name="SFTP Require SSHFP">
-                        <summary>SFTP require SSHFP.</summary>
+                    <config-key id="repo-sftp-verify-sshfp" name="SFTP Verify SSHFP">
+                        <summary>SFTP verify SSHFP.</summary>
 
                         <text>
-                            <p>Perform a fingerprint verification via SSHFP records. This assumes that DNS resolution is configured to resolve to a DNS server that has been properly configured for DNSSEC and that the path between the host and the DNS server is secure. If no match is found for the host fingerprint in the SSHFP records an error is thrown. If the OS supports RES_TRUSTAD, the SSHFP query will have the RES_TRUSTAD (ad) flag set and if the response ad flag is unset an error will be thrown.</p>
+                            <p>Perform fingerprint verification via SSHFP records. This assumes that DNS resolution is configured to resolve to a DNS server that has been properly configured for DNSSEC and that the path between the host and the DNS server is secure. The OS must support RES_TRUSTAD (ad flag) in order to verify via SSHFP. If all DNS provided fingerprints match, the host will be trusted. If the DNS response ad flag is not set, or no DNS fingerprints are provided, or if any of the fingerprint records do not match the host fingerprint, warnings are logged and <backrest/> will failover to attempt to verify via normal methods.</p>
                         </text>
 
                         <default>n</default>

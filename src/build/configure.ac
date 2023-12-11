@@ -16,7 +16,7 @@ AC_CANONICAL_HOST
 AC_SUBST(CFLAGS, "${CFLAGS} -std=c99")
 
 # BSD_SOURCE can be removed when support for RHEL7 is dropped
-# DEFAULT_SOURCE can be removed when support for RHEL7 is dropped if we rewrite an hstrerror call to a generic error message
+# DEFAULT_SOURCE can be removed when support for RHEL7 is dropped if we rewrite a few hstrerror calls to a generic error message
 # ----------------------------------------------------------------------------------------------------------------------------------
 case $host_os in
     darwin*)
@@ -129,17 +129,9 @@ AC_CHECK_LIB(
     [AC_CHECK_HEADER(libssh2_sftp.h, [],
         [AC_MSG_ERROR([header file <libssh2_sftp.h> is required])])])
 
-# Check for optional resolv library, required if we have libssh2
+# Check for optional resolv library if we have libssh2
 # ----------------------------------------------------------------------------------------------------------------------------------
-if [[ ${host_os%%[0-9]*} != "freebsd" ]]
-then
-    if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
-    then
-        AC_CHECK_LIB([resolv], [ns_initparse], [], [AC_MSG_ERROR([library 'resolv' is required])])
-        AC_CHECK_HEADER(resolv.h, [AC_DEFINE(HAVE_LIBRESOLV) AC_SUBST(LIBS, "${LIBS} -lresolv")],
-           [AC_MSG_ERROR([header file <resolv.h> is required])])
-    fi
-fi
+AC_SEARCH_LIBS([resolv], [ns_initparse], [], [])
 
 # Check optional zst library. Ignore any versions below 1.0.
 # ----------------------------------------------------------------------------------------------------------------------------------

@@ -3409,7 +3409,7 @@ CFLAGS="${CFLAGS} -std=c99"
 
 
 # BSD_SOURCE can be removed when support for RHEL7 is dropped
-# DEFAULT_SOURCE can be removed when support for RHEL7 is dropped if we rewrite an hstrerror call to a generic error message
+# DEFAULT_SOURCE can be removed when support for RHEL7 is dropped if we rewrite a few hstrerror calls to a generic error message
 # ----------------------------------------------------------------------------------------------------------------------------------
 case $host_os in
     darwin*)
@@ -4192,69 +4192,73 @@ fi
 fi
 
 
-# Check for optional resolv library, required if we have libssh2
+# Check for optional resolv library if we have libssh2
 # ----------------------------------------------------------------------------------------------------------------------------------
-if [ ${host_os%%[0-9]*} != "freebsd" ]
-then
-    if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
-    then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for ns_initparse in -lresolv" >&5
-printf %s "checking for ns_initparse in -lresolv... " >&6; }
-if test ${ac_cv_lib_resolv_ns_initparse+y}
+#if [[ ${host_os%%[0-9]*} != "freebsd" ]]
+#then
+#    if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
+#    then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing resolv" >&5
+printf %s "checking for library containing resolv... " >&6; }
+if test ${ac_cv_search_resolv+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lresolv  $LIBS"
+  ac_func_search_save_LIBS=$LIBS
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
 /* Override any GCC internal prototype to avoid an error.
    Use char because int might match the return type of a GCC
    builtin and then its argument prototype would still apply.  */
-char ns_initparse ();
+char resolv ();
 int
 main (void)
 {
-return ns_initparse ();
+return resolv ();
   ;
   return 0;
 }
 _ACEOF
-if ac_fn_c_try_link "$LINENO"
+for ac_lib in '' ns_initparse
+do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"
 then :
-  ac_cv_lib_resolv_ns_initparse=yes
-else $as_nop
-  ac_cv_lib_resolv_ns_initparse=no
+  ac_cv_search_resolv=$ac_res
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_resolv_ns_initparse" >&5
-printf "%s\n" "$ac_cv_lib_resolv_ns_initparse" >&6; }
-if test "x$ac_cv_lib_resolv_ns_initparse" = xyes
+    conftest$ac_exeext
+  if test ${ac_cv_search_resolv+y}
 then :
-  printf "%s\n" "#define HAVE_LIBRESOLV 1" >>confdefs.h
-
-  LIBS="-lresolv $LIBS"
+  break
+fi
+done
+if test ${ac_cv_search_resolv+y}
+then :
 
 else $as_nop
-  as_fn_error $? "library 'resolv' is required" "$LINENO" 5
+  ac_cv_search_resolv=no
 fi
-
-        ac_fn_c_check_header_compile "$LINENO" "resolv.h" "ac_cv_header_resolv_h" "$ac_includes_default"
-if test "x$ac_cv_header_resolv_h" = xyes
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_resolv" >&5
+printf "%s\n" "$ac_cv_search_resolv" >&6; }
+ac_res=$ac_cv_search_resolv
+if test "$ac_res" != no
 then :
-  printf "%s\n" "#define HAVE_LIBRESOLV 1" >>confdefs.h
- LIBS="${LIBS} -lresolv"
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
 
-else $as_nop
-  as_fn_error $? "header file <resolv.h> is required" "$LINENO" 5
 fi
 
-    fi
-fi
+#    fi
+#fi
 
 # Check optional zst library. Ignore any versions below 1.0.
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -5821,4 +5825,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
-# Generated from src/build/configure.ac sha1 5abff83db3e7f884359086cce1e4ecd8e3ce41f0
+# Generated from src/build/configure.ac sha1 b0cd3995489a1f085dc72b4b82a755747a7cae2c

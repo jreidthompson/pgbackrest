@@ -528,7 +528,7 @@ typedef enum
     cfgOptRepoSftpPrivateKeyFile,
     cfgOptRepoSftpPrivateKeyPassphrase,
     cfgOptRepoSftpPublicKeyFile,
-    cfgOptRepoSftpRequireSshfp,
+    cfgOptRepoSftpVerifySshfp,
     cfgOptRepoStorageCaFile,
     cfgOptRepoStorageCaPath,
     cfgOptRepoStorageHost,
