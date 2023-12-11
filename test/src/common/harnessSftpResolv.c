@@ -63,7 +63,7 @@ storageSftpResNquery(res_state statep, const char *dname, int class, int type, u
         FUNCTION_HARNESS_PARAM(STRINGZ, dname);
         FUNCTION_HARNESS_PARAM(INT, class);
         FUNCTION_HARNESS_PARAM(INT, type);
-        FUNCTION_HARNESS_PARAM(UCHARDATA, answer);
+        FUNCTION_HARNESS_PARAM_P(UCHARDATA, answer);
         FUNCTION_HARNESS_PARAM(INT, anslen);
     FUNCTION_HARNESS_END();
 
@@ -116,7 +116,7 @@ static int
 storageSftpNsInitparse(const unsigned char *answer, int len, ns_msg *handle)
 {
     FUNCTION_HARNESS_BEGIN();
-        FUNCTION_HARNESS_PARAM(UCHARDATA, answer);
+        FUNCTION_HARNESS_PARAM_P(UCHARDATA, answer);
         FUNCTION_HARNESS_PARAM(INT, len);
         FUNCTION_HARNESS_PARAM_P(VOID, handle);
     FUNCTION_HARNESS_END();
@@ -133,7 +133,7 @@ storageSftpNsInitparse(const unsigned char *answer, int len, ns_msg *handle)
                 break;
 
             case 1:
-                result = 1;
+                result = 0;
                 break;
 
             default:
@@ -150,18 +150,27 @@ storageSftpNsInitparse(const unsigned char *answer, int len, ns_msg *handle)
 /***********************************************************************************************************************************
 Shim storageSftpVerifyFingerprint()
 ***********************************************************************************************************************************/
-static void
+static bool
 storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
 {
+    FUNCTION_HARNESS_BEGIN();
+        FUNCTION_HARNESS_PARAM_P(VOID, session);
+        FUNCTION_HARNESS_PARAM(VOID, handle);
+    FUNCTION_HARNESS_END();
+
+    bool result;
+
     if (session == NULL)
         THROW(AssertError, "storageSftpVerifyFingerprint expects 'session' to be not null");
 
     if (hrnSftpResolvStatic.localShimSftpResolv)
     {
-        // Do nothing, storageSftpVerifyFingerprint has its own tests in sftpTest.c
+        result = true;
     }
     else
-        storageSftpVerifyFingerprint_SHIMMED(session, handle);
+        result = storageSftpVerifyFingerprint_SHIMMED(session, handle);
+
+    FUNCTION_HARNESS_RETURN(BOOL, result);
 }
 
 /**********************************************************************************************************************************/
