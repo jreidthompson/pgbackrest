@@ -2460,7 +2460,7 @@ option:
     command: repo-type
     depend: repo-sftp-host
 
-  repo-sftp-verify-sshfp:
+  repo-sftp-verify-via-sshfp:
     section: global
     group: repo
     type: boolean

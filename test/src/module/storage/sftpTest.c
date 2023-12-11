@@ -1134,7 +1134,7 @@ testRun(void)
                 .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
                 .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
-                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifySshfp, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifyViaSshfp, repoIdx),
                 .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
             "new storage (defaults)");
         TEST_RESULT_LOG(
@@ -1196,7 +1196,7 @@ testRun(void)
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifySshfp, "y");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifyViaSshfp, "y");
         HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
         TEST_ASSIGN(
@@ -1210,7 +1210,7 @@ testRun(void)
                 .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
                 .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
-                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifySshfp, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifyViaSshfp, repoIdx),
                 .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
             "new storage (defaults)");
         TEST_RESULT_LOG(
@@ -1278,7 +1278,7 @@ testRun(void)
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifySshfp, "y");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifyViaSshfp, "y");
         HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
         TEST_ASSIGN(
@@ -1292,7 +1292,7 @@ testRun(void)
                 .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
                 .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
-                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifySshfp, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifyViaSshfp, repoIdx),
                 .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
             "new storage (defaults)");
         TEST_RESULT_LOG(
@@ -1331,7 +1331,7 @@ testRun(void)
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifySshfp, "y");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifyViaSshfp, "y");
         HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
         storageTest = NULL;
@@ -1347,7 +1347,7 @@ testRun(void)
                 .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
                 .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
-                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifySshfp, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifyViaSshfp, repoIdx),
                 .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
             "new storage (defaults)");
 
@@ -1409,7 +1409,7 @@ testRun(void)
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifySshfp, "y");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifyViaSshfp, "y");
         HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
         TEST_ASSIGN(
@@ -1423,7 +1423,7 @@ testRun(void)
                 .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
                 .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
-                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifySshfp, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifyViaSshfp, repoIdx),
                 .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
             "new storage (defaults)");
         TEST_RESULT_LOG(
@@ -1488,7 +1488,7 @@ testRun(void)
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifySshfp, "y");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifyViaSshfp, "y");
         HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
         storageTest = NULL;
