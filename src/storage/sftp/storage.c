@@ -1093,7 +1093,9 @@ storageSftpResNinit(res_state statep)
 
 /**********************************************************************************************************************************/
 static int
-storageSftpResNquery(res_state statep, const char *dname, const int class, const int type, unsigned char *answer, const int anslen)
+storageSftpResNquery(
+    res_state statep, const char *const dname, const int class, const int type, unsigned char *answer,
+    const int anslen)
 {
     FUNCTION_LOG_BEGIN(logLevelTrace);
         FUNCTION_LOG_PARAM(VOID, statep);
@@ -1132,7 +1134,7 @@ storageSftpSetOption(res_state statep, const uint32_t option)
 {
     FUNCTION_LOG_BEGIN(logLevelTrace);
         FUNCTION_LOG_PARAM(VOID, statep);
-        FUNCTION_LOG_PARAM(UINT64, option);
+        FUNCTION_LOG_PARAM(UINT32, option);
     FUNCTION_LOG_END();
 
     ASSERT(statep != NULL);
@@ -1166,6 +1168,7 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
         // Parse the resource record
         ns_parserr(&handle, ns_s_an, rrnum, &rr);
 
+        // Skip non-sshfp records
         if (ns_rr_type(rr) != ns_t_sshfp)
             continue;
 
@@ -1211,8 +1214,8 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
     if (!foundSshfpRecord)
         LOG_WARN("no SSHFP records for host found in DNS");
 
-    // no records return false
-    // any mismatch return false
+    // If no records return false
+    // else if any mismatch return false
     // else all match return true
 
     if (foundSshfpRecord == false)
@@ -1227,9 +1230,8 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
 
 /***********************************************************************************************************************************
 Perform minimal DNS verification on the host. Queries with RES_TRUSTAD if supported and verifies that response is RES_TRUSTAD.
-Checks that the hostkey is returned in the SSHFP list. This is not a complete check but it is better than nothing. It is predicated
-on the fact that the DNS server is properly configured for DNSSEC and the communication path between the host and the DNS server is
-secure.
+Checks that the hostkey is returned in the SSHFP list. It is predicated on the fact that the DNS server is properly configured for
+DNSSEC and the communication path between the host and the DNS server is secure.
 ***********************************************************************************************************************************/
 static bool
 storageSftpSshfp(StorageSftp *const this, const String *const host)
@@ -1273,11 +1275,11 @@ storageSftpSshfp(StorageSftp *const this, const String *const host)
 #endif // RES_TRUSTAD
 
 #ifndef RES_TRUSTAD
-    LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, skipping trust_ad check for host '%s'", strZ(host));
+    LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via SSHFP", strZ(host));
 #endif // RES_TRUSTAD
 
-    // If res_trustad is not set, we should still check for sshfp records, we can't verify them, but we may be able to provide
-    // useful information to the user
+    // If res_trustad is not set, we still check for sshfp records, we can't verify them, but we may be able to provide useful
+    // information to the user.
 
     // Initialize parsing the response
     int rc;
@@ -1286,7 +1288,7 @@ storageSftpSshfp(StorageSftp *const this, const String *const host)
         LOG_WARN_FMT("ns_initparse error [%d] %s for host '%s'", rc, hstrerror(rc), strZ(host));
 
     // Attempt to verify the host via DNS provided fingerprint
-    bool sshfpVerified = storageSftpVerifyFingerprint(this->session, handle);
+    const bool sshfpVerified = storageSftpVerifyFingerprint(this->session, handle);
 
     // Close the resolver
     res_nclose(&my_res_state);
@@ -1416,7 +1418,7 @@ storageSftpNew(
                 break;
         }
 
-        // Attempt to verify via SSHFP fingerprint if requested. If verifiedViaSshfp is successful we implicitly trust the host
+        // Attempt to verify via SSHFP fingerprint if requested. If verifiedViaSshfp is successful we implicitly trust the host.
         bool verifiedViaSshfp = false;
         if (param.sshfp)
             verifiedViaSshfp = storageSftpSshfp(this, host);
@@ -1462,15 +1464,16 @@ storageSftpNew(
                 // Loop through the list of known host files
                 for (unsigned int listIdx = 0; listIdx < strLstSize(knownHostsPathList); listIdx++)
                 {
-                    const char *const idxKnownHostFile = strZNull(strLstGet(knownHostsPathList, listIdx));
+                    const char *const currentKnownHostFile = strZNull(strLstGet(knownHostsPathList, listIdx));
 
                     // Read the known hosts file entries into the collection, log message for readfile status.
                     // libssh2_knownhost_readfile() returns the number of successfully loaded hosts or a negative value on error, an
                     // empty known hosts file will return 0.
-                    if ((rc = libssh2_knownhost_readfile(knownHostsList, idxKnownHostFile, LIBSSH2_KNOWNHOST_FILE_OPENSSH)) <= 0)
+                    if ((rc = libssh2_knownhost_readfile(
+                             knownHostsList, currentKnownHostFile, LIBSSH2_KNOWNHOST_FILE_OPENSSH)) <= 0)
                     {
                         if (rc == 0)
-                            LOG_DETAIL_FMT("libssh2 '%s' file is empty", idxKnownHostFile);
+                            LOG_DETAIL_FMT("libssh2 '%s' file is empty", currentKnownHostFile);
                         else
                         {
                             char *libSsh2ErrMsg;
@@ -1479,11 +1482,12 @@ storageSftpNew(
                             // Get the libssh2 error message
                             rc = libssh2_session_last_error(this->session, &libSsh2ErrMsg, &libSsh2ErrMsgLen, 0);
 
-                            LOG_DETAIL_FMT("libssh2 read '%s' failed: libssh2 errno [%d] %s", idxKnownHostFile, rc, libSsh2ErrMsg);
+                            LOG_DETAIL_FMT(
+                                "libssh2 read '%s' failed: libssh2 errno [%d] %s", currentKnownHostFile, rc, libSsh2ErrMsg);
                         }
                     }
                     else
-                        LOG_DETAIL_FMT("libssh2 read '%s' succeeded", idxKnownHostFile);
+                        LOG_DETAIL_FMT("libssh2 read '%s' succeeded", currentKnownHostFile);
                 }
 
                 // Get the remote host key
@@ -1527,7 +1531,7 @@ storageSftpNew(
                                 ASSERT(param.hostKeyCheckType == SFTP_STRICT_HOSTKEY_CHECKING_ACCEPT_NEW);
 
                                 // Throw an error when set to accept-new and match fails or mismatches else add the new host key to
-                                // the user's known_hosts file
+                                // the user's known_hosts file.
                                 if (rc == LIBSSH2_KNOWNHOST_CHECK_MISMATCH || rc == LIBSSH2_KNOWNHOST_CHECK_FAILURE)
                                 {
                                     // Free the known hosts list
@@ -1567,9 +1571,8 @@ storageSftpNew(
 
             do
             {
-                rc =
-                    libssh2_userauth_publickey_fromfile(
-                        this->session, strZ(user), strZNull(pubKeyPath), strZ(privKeyPath), strZNull(param.keyPassphrase));
+                rc = libssh2_userauth_publickey_fromfile(
+                    this->session, strZ(user), strZNull(pubKeyPath), strZ(privKeyPath), strZNull(param.keyPassphrase));
             }
             while (storageSftpWaitFd(this, rc));
 

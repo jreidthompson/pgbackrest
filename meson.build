@@ -176,13 +176,15 @@ lib_ssh2 = dependency('libssh2', required: false)
 
 if lib_ssh2.found()
     configuration.set('HAVE_LIBSSH2', true, description: 'Is libssh2 present?')
-endif
 
-# Find optional libresolv library, required if libssh2 is present
-lib_resolv = cc.find_library('resolv', required: false)
+    # Find optional libresolv library, if libssh2 is present
+    if lib_ssh2.found()
+        lib_resolv = cc.find_library('resolv', required: false)
 
-if lib_resolv.found()
-    configuration.set('HAVE_LIBRESOLV', true, description: 'Is libresolv present?')
+        if lib_resolv.found()
+            configuration.set('HAVE_LIBRESOLV', true, description: 'Is libresolv present?')
+        endif
+    endif
 endif
 
 # Find optional zstd library

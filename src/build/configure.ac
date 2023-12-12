@@ -118,7 +118,7 @@ AC_CHECK_LIB(
     [AC_CHECK_HEADER(lz4frame.h, [AC_DEFINE(HAVE_LIBLZ4) AC_SUBST(LIBS, "${LIBS} -llz4")],
         [AC_MSG_ERROR([header file <lz4frame.h> is required])])])
 
-# Check optional libSSH2 library
+# Check optional libssh2 library
 # ----------------------------------------------------------------------------------------------------------------------------------
 AC_CHECK_LIB(
     [ssh2], [libssh2_init],
@@ -131,9 +131,11 @@ AC_CHECK_LIB(
 
 # Check for optional resolv library if we have libssh2
 # ----------------------------------------------------------------------------------------------------------------------------------
-AC_CHECK_LIB([resolv], [ns_initparse], [], [])
-#AC_CHECK_HEADER(resolv.h, [], [])
-AC_HEADER_RESOLV
+if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
+then
+    AC_CHECK_LIB([resolv], [ns_initparse], [], [])
+    AC_HEADER_RESOLV
+fi
 
 # Check optional zst library. Ignore any versions below 1.0.
 # ----------------------------------------------------------------------------------------------------------------------------------

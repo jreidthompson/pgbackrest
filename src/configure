@@ -4093,7 +4093,7 @@ fi
 fi
 
 
-# Check optional libSSH2 library
+# Check optional libssh2 library
 # ----------------------------------------------------------------------------------------------------------------------------------
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libssh2_init in -lssh2" >&5
 printf %s "checking for libssh2_init in -lssh2... " >&6; }
@@ -4194,7 +4194,9 @@ fi
 
 # Check for optional resolv library if we have libssh2
 # ----------------------------------------------------------------------------------------------------------------------------------
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for ns_initparse in -lresolv" >&5
+if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
+then
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for ns_initparse in -lresolv" >&5
 printf %s "checking for ns_initparse in -lresolv... " >&6; }
 if test ${ac_cv_lib_resolv_ns_initparse+y}
 then :
@@ -4237,8 +4239,7 @@ then :
 
 fi
 
-#AC_CHECK_HEADER(resolv.h, [], [])
-ac_fn_c_check_header_compile "$LINENO" "sys/types.h" "ac_cv_header_sys_types_h" "#ifdef HAVE_SYS_TYPES_H
+    ac_fn_c_check_header_compile "$LINENO" "sys/types.h" "ac_cv_header_sys_types_h" "#ifdef HAVE_SYS_TYPES_H
 #  include <sys/types.h>
 #endif
 #ifdef HAVE_NETINET_IN_H
@@ -4330,6 +4331,7 @@ then :
 fi
 
 
+fi
 
 # Check optional zst library. Ignore any versions below 1.0.
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -5896,4 +5898,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
-# Generated from src/build/configure.ac sha1 13947fd17a3dc13d1ae7750708ad0fc89fc9b997
+# Generated from src/build/configure.ac sha1 d02753966f72fc0ea5ee493613a5b2aac0852b5c

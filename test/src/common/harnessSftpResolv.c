@@ -32,7 +32,7 @@ static int
 storageSftpResNinit(res_state statep)
 {
     FUNCTION_HARNESS_BEGIN();
-        FUNCTION_HARNESS_PARAM_P(VOID, statep);
+        FUNCTION_HARNESS_PARAM(VOID, statep);
     FUNCTION_HARNESS_END();
 
     int result;
@@ -56,7 +56,9 @@ storageSftpResNinit(res_state statep)
 Shim storageSftpResNquery()
 ***********************************************************************************************************************************/
 static int
-storageSftpResNquery(res_state statep, const char *dname, int class, int type, unsigned char *answer, int anslen)
+storageSftpResNquery(
+    res_state statep, const char *const dname, const int class, const int type, unsigned char *answer,
+    const int anslen)
 {
     FUNCTION_HARNESS_BEGIN();
         FUNCTION_HARNESS_PARAM_P(VOID, statep);
@@ -165,6 +167,7 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
 
     if (hrnSftpResolvStatic.localShimSftpResolv)
     {
+        // Return true. storageSftpVerifyFingerprint has its own tests in sftpTest.c.
         result = true;
     }
     else

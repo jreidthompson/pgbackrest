@@ -1219,7 +1219,7 @@ testRun(void)
             "P00   WARN: Host cannot be verified via SSHFP, RES_TRUSTAD not set in response\n"
 #endif // RES_TRUSTAD
 #ifndef RES_TRUSTAD
-            "P00   WARN: RES_TRUSTAD not supported on this OS, skipping trust_ad check for host 'no-data'\n"
+            "P00   WARN: RES_TRUSTAD not supported on this OS, host 'no-data' cannot be verified via SSHFP\n"
 #endif // RES_TRUSTAD
             "P00   WARN: ns_initparse error [-1] Resolver internal error for host 'no-data'\n"
             "P00   WARN: host 'no-data' not found in known hosts files, attempting to add host to "
@@ -8257,7 +8257,7 @@ testRun(void)
 
 #ifndef RES_TRUSTAD
                 LOG_DETAIL_FMT(
-                    "RES_TRUSTAD not supported on this OS, skipping trust_ad check for host '%s'", strZ(host));
+                    "RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via SSHFP", strZ(host));
 #endif // RES_TRUSTAD
 
                 // Initialize parsing the response
@@ -8280,7 +8280,7 @@ testRun(void)
 
         TEST_RESULT_LOG(
 #ifndef RES_TRUSTAD
-            "P00 DETAIL: RES_TRUSTAD not supported on this OS, skipping trust_ad check for host 'www.postgresql.org'\n"
+            "P00 DETAIL: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via SSHFP\n"
 #endif // RES_TRUSTAD
             "P00   WARN: no SSHFP records for host found in DNS");
 
@@ -8407,7 +8407,7 @@ testRun(void)
 #endif // RES_TRUSTAD
 
 #ifndef RES_TRUSTAD
-                LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, skipping trust_ad check for host '%s'", strZ(host));
+                LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via SSHFP", strZ(host));
 #endif // RES_TRUSTAD
 
                 // Initialize parsing the response
@@ -8429,7 +8429,7 @@ testRun(void)
 
         TEST_RESULT_LOG(
 #ifndef RES_TRUSTAD
-            "P00   WARN: RES_TRUSTAD not supported on this OS, skipping trust_ad check for host 'www.postgresql.org'\n"
+            "P00   WARN: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via SSHFP\n"
 #endif // RES_TRUSTAD
             "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
             " 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
@@ -8572,7 +8572,7 @@ testRun(void)
 #endif // RES_TRUSTAD
 
 #ifndef RES_TRUSTAD
-                LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, skipping trust_ad check for host '%s'", strZ(host));
+                LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via SSHFP", strZ(host));
 #endif // RES_TRUSTAD
 
                 // Initialize parsing the response
@@ -8594,7 +8594,7 @@ testRun(void)
 
         TEST_RESULT_LOG(
 #ifndef RES_TRUSTAD
-            "P00   WARN: RES_TRUSTAD not supported on this OS, skipping trust_ad check for host 'www.postgresql.org'\n"
+            "P00   WARN: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via SSHFP\n"
 #endif // RES_TRUSTAD
             "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
             " 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
@@ -8748,7 +8748,7 @@ testRun(void)
 #endif // RES_TRUSTAD
 
 #ifndef RES_TRUSTAD
-                LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, skipping trust_ad check for host '%s'", strZ(host));
+                LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via SSHFP", strZ(host));
 #endif // RES_TRUSTAD
 
                 // Initialize parsing the response
@@ -8770,7 +8770,7 @@ testRun(void)
 
         TEST_RESULT_LOG(
 #ifndef RES_TRUSTAD
-            "P00   WARN: RES_TRUSTAD not supported on this OS, skipping trust_ad check for host 'www.postgresql.org'\n"
+            "P00   WARN: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via SSHFP\n"
 #endif // RES_TRUSTAD
             "P00 DETAIL: sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
             " 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
@@ -8924,7 +8924,7 @@ testRun(void)
 #endif // RES_TRUSTAD
 
 #ifndef RES_TRUSTAD
-                LOG_DETAIL_FMT("RES_TRUSTAD not supported on this OS, skipping trust_ad check for host '%s'", strZ(host));
+                LOG_DETAIL_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via sshfp", strZ(host));
 #endif // RES_TRUSTAD
 
                 // Initialize parsing the response
@@ -8946,7 +8946,7 @@ testRun(void)
 
         TEST_RESULT_LOG(
 #ifndef RES_TRUSTAD
-            "P00 DETAIL: RES_TRUSTAD not supported on this OS, skipping trust_ad check for host 'www.postgresql.org'\n"
+            "P00 DETAIL: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via sshfp\n"
 #endif // RES_TRUSTAD
             "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
             " 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
