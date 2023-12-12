@@ -132,7 +132,8 @@ AC_CHECK_LIB(
 # Check for optional resolv library if we have libssh2
 # ----------------------------------------------------------------------------------------------------------------------------------
 AC_CHECK_LIB([resolv], [ns_initparse], [], [])
-AC_CHECK_HEADER(resolv.h, [], [])
+#AC_CHECK_HEADER(resolv.h, [], [])
+AC_HEADER_RESOLV
 
 # Check optional zst library. Ignore any versions below 1.0.
 # ----------------------------------------------------------------------------------------------------------------------------------

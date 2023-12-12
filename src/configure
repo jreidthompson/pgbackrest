@@ -4237,11 +4237,98 @@ then :
 
 fi
 
-ac_fn_c_check_header_compile "$LINENO" "resolv.h" "ac_cv_header_resolv_h" "$ac_includes_default"
-if test "x$ac_cv_header_resolv_h" = xyes
+#AC_CHECK_HEADER(resolv.h, [], [])
+ac_fn_c_check_header_compile "$LINENO" "sys/types.h" "ac_cv_header_sys_types_h" "#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#  include <netinet/in.h>   /* inet_ functions / structs */
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#  include <arpa/nameser.h> /* DNS HEADER struct */
+#endif
+#ifdef HAVE_NETDB_H
+#  include <netdb.h>
+#endif
+"
+if test "x$ac_cv_header_sys_types_h" = xyes
 then :
+  printf "%s\n" "#define HAVE_SYS_TYPES_H 1" >>confdefs.h
 
 fi
+ac_fn_c_check_header_compile "$LINENO" "netinet/in.h" "ac_cv_header_netinet_in_h" "#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#  include <netinet/in.h>   /* inet_ functions / structs */
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#  include <arpa/nameser.h> /* DNS HEADER struct */
+#endif
+#ifdef HAVE_NETDB_H
+#  include <netdb.h>
+#endif
+"
+if test "x$ac_cv_header_netinet_in_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_NETINET_IN_H 1" >>confdefs.h
+
+fi
+ac_fn_c_check_header_compile "$LINENO" "arpa/nameser.h" "ac_cv_header_arpa_nameser_h" "#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#  include <netinet/in.h>   /* inet_ functions / structs */
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#  include <arpa/nameser.h> /* DNS HEADER struct */
+#endif
+#ifdef HAVE_NETDB_H
+#  include <netdb.h>
+#endif
+"
+if test "x$ac_cv_header_arpa_nameser_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_ARPA_NAMESER_H 1" >>confdefs.h
+
+fi
+ac_fn_c_check_header_compile "$LINENO" "netdb.h" "ac_cv_header_netdb_h" "#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#  include <netinet/in.h>   /* inet_ functions / structs */
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#  include <arpa/nameser.h> /* DNS HEADER struct */
+#endif
+#ifdef HAVE_NETDB_H
+#  include <netdb.h>
+#endif
+"
+if test "x$ac_cv_header_netdb_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_NETDB_H 1" >>confdefs.h
+
+fi
+ac_fn_c_check_header_compile "$LINENO" "resolv.h" "ac_cv_header_resolv_h" "#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#  include <netinet/in.h>   /* inet_ functions / structs */
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#  include <arpa/nameser.h> /* DNS HEADER struct */
+#endif
+#ifdef HAVE_NETDB_H
+#  include <netdb.h>
+#endif
+"
+if test "x$ac_cv_header_resolv_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_RESOLV_H 1" >>confdefs.h
+
+fi
+
 
 
 # Check optional zst library. Ignore any versions below 1.0.
@@ -5809,4 +5896,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
-# Generated from src/build/configure.ac sha1 65b6564a9a587b5d860cb82af6b2796829905e30
+# Generated from src/build/configure.ac sha1 13947fd17a3dc13d1ae7750708ad0fc89fc9b997
