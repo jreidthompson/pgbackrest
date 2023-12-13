@@ -1157,7 +1157,6 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
     FUNCTION_LOG_END();
 
     bool result = false;
-    bool keyNoMatch = false;
     bool foundSshfpRecord = false;
 
     // Check the sshfp resource records for a fingerprint match
@@ -1199,31 +1198,18 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
 
         if (binaryFingerprint != NULL && memcmp(binaryFingerprint, digest, (size_t)ns_rr_rdlen(rr) - 2) == 0)
         {
+            result = true;
+
             LOG_DETAIL_FMT(
                 "sshfp fingerprint match found for sshfp digest_type [%d] hashType [%d] '%s'", digest_type, hashType, buffer);
         }
         else
-        {
-            keyNoMatch = true;
-
             LOG_WARN_FMT(
                 "no sshfp fingerprint match found for sshfp digest_type [%d] hashType [%d] '%s'", digest_type, hashType, buffer);
-        }
     }
 
     if (!foundSshfpRecord)
         LOG_WARN("no SSHFP records for host found in DNS");
-
-    // If no records return false
-    // else if any mismatch return false
-    // else all match return true
-
-    if (foundSshfpRecord == false)
-        result = false;
-    else if (keyNoMatch == true)
-        result = false;
-    else
-        result = true;
 
     FUNCTION_LOG_RETURN(BOOL, result);
 }
@@ -1269,10 +1255,10 @@ storageSftpSshfp(StorageSftp *const this, const String *const host)
 #ifdef RES_TRUSTAD
     // Check the RES_TRUSTAD flag
     res_trustad = ((HEADER *)answer)->ad;
+#endif // RES_TRUSTAD
 
     if (res_trustad != 1)
         LOG_WARN("Host cannot be verified via SSHFP, RES_TRUSTAD not set in response");
-#endif // RES_TRUSTAD
 
 #ifndef RES_TRUSTAD
     LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via SSHFP", strZ(host));

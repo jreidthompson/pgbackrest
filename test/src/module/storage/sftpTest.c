@@ -8246,18 +8246,18 @@ testRun(void)
                 memmove(answer, bufPtr(sshfp), (size_t)bufUsed(sshfp));
                 len = (int)bufUsed(sshfp);
 
-//                // Default res_trustad to unset
-//                unsigned char res_trustad = 0;
+                // Default res_trustad to unset
+                unsigned char res_trustad = 0;
 #ifdef RES_TRUSTAD
                 // Check the RES_TRUSTAD flag
-                unsigned char res_trustad = ((HEADER *)answer)->ad;
-                if (res_trustad != 1)
-                    LOG_WARN("Host cannot be verified via SSHFP, RES_TRUSTAD not set in response");
+                res_trustad = ((HEADER *)answer)->ad;
 #endif // RES_TRUSTAD
 
+                if (res_trustad != 1)
+                    LOG_WARN("Host cannot be verified via SSHFP, RES_TRUSTAD not set in response");
+
 #ifndef RES_TRUSTAD
-                LOG_DETAIL_FMT(
-                    "RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via SSHFP", strZ(host));
+                LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via SSHFP", strZ(host));
 #endif // RES_TRUSTAD
 
                 // Initialize parsing the response
@@ -8280,7 +8280,8 @@ testRun(void)
 
         TEST_RESULT_LOG(
 #ifndef RES_TRUSTAD
-            "P00 DETAIL: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via SSHFP\n"
+            "P00   WARN: Host cannot be verified via SSHFP, RES_TRUSTAD not set in response\n"
+            "P00   WARN: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via SSHFP\n"
 #endif // RES_TRUSTAD
             "P00   WARN: no SSHFP records for host found in DNS");
 
@@ -8399,12 +8400,15 @@ testRun(void)
                 memmove(answer, bufPtr(sshfp), (size_t)bufUsed(sshfp));
                 len = (int)bufUsed(sshfp);
 
+                // Default res_trustad to unset
+                unsigned char res_trustad = 0;
 #ifdef RES_TRUSTAD
                 // Check the RES_TRUSTAD flag
-                unsigned char res_trustad = ((HEADER *)answer)->ad;
+                res_trustad = ((HEADER *)answer)->ad;
+#endif // RES_TRUSTAD
+
                 if (res_trustad != 1)
                     LOG_WARN("Host cannot be verified, RES_TRUSTAD not set in response");
-#endif // RES_TRUSTAD
 
 #ifndef RES_TRUSTAD
                 LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via SSHFP", strZ(host));
@@ -8429,6 +8433,7 @@ testRun(void)
 
         TEST_RESULT_LOG(
 #ifndef RES_TRUSTAD
+            "P00   WARN: Host cannot be verified, RES_TRUSTAD not set in response\n"
             "P00   WARN: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via SSHFP\n"
 #endif // RES_TRUSTAD
             "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
@@ -8446,176 +8451,6 @@ testRun(void)
 #endif // LIBSSH2_HOSTKEY_HASH_SHA256
             "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
             " '87ac6bede384d2dc6254f396b83ed34856512e64'");
-
-        harnessLogLevelReset();
-#else
-        TEST_LOG(PROJECT_NAME " not built with sftp support");
-#endif // HAVE_LIBSSH2
-    }
-
-    // *****************************************************************************************************************************
-    if (testBegin("storageSftpVerifyFingerprint()"))
-    {
-#ifdef HAVE_LIBSSH2
-        // -------------------------------------------------------------------------------------------------------------------------
-        TEST_TITLE("storageSftpVerifyFingerprint() keyMatch && keyNoMatch");
-
-        harnessLogLevelSet(logLevelDetail);
-
-        TimeMSec timeout = 500;
-        const StorageSftpNewParam param = {.sshfp = true};
-
-        // Configure a valid host so that we can successfully initialize the resolver
-        const String *host = STRDEF("www.postgresql.org");
-        unsigned int port = 22;
-
-        // Create binary representation of the host key that will generate a successful match
-        unsigned char fingerprint[1024];
-        decodeToBin(encodingHex, "87ac6bede384d2dc6254f396b83ed34856512e64", fingerprint);
-
-        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
-        {
-            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = 0},
-            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
-            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = 0},
-            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultNull = true},
-#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
-            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[3]", .resultZ = HOSTKEY},
-#else
-            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = HOSTKEY},
-#endif // LIBSSH2_HOSTKEY_HASH_SHA256
-#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
-            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[3]", .resultNull = true},
-#else
-            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultNull = true},
-#endif // LIBSSH2_HOSTKEY_HASH_SHA256
-            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = (char *)fingerprint},
-            {.function = NULL},
-        });
-
-        OBJ_NEW_BEGIN(StorageSftp, .childQty = MEM_CONTEXT_QTY_MAX, .callbackQty = 1)
-        {
-            *this = (StorageSftp)
-            {
-                .interface = storageInterfaceSftp,
-                .timeout = timeout,
-            };
-
-            // Init SFTP session
-            if (libssh2_init(0) != 0)
-                THROW_FMT(ServiceError, "unable to init libssh2");
-
-            this->ioSession = ioClientOpen(sckClientNew(host, port, timeout, timeout));
-            this->session = libssh2_session_init();
-
-            if (this->session == NULL)
-                THROW_FMT(ServiceError, "unable to init libssh2 session");
-
-            // Set session to non-blocking
-            libssh2_session_set_blocking(this->session, 0);
-
-            // Perform handshake
-            int rc;
-
-            do
-            {
-                rc = libssh2_session_handshake(this->session, ioSessionFd(this->ioSession));
-            }
-            while (storageSftpWaitFd(this, rc));
-
-            if (rc == LIBSSH2_ERROR_EAGAIN)
-                THROW_FMT(ServiceError, "timeout during libssh2 handshake [%d]", rc);
-
-            if (rc != 0)
-                THROW_FMT(ServiceError, "libssh2 handshake failed [%d]", rc);
-
-            if (param.sshfp)
-            {
-                if (storageSftpResNinit(&my_res_state) != 0)
-                    LOG_WARN("unable to initialize resolver");
-
-#ifdef RES_TRUSTAD
-                // Set the resolver to use TRUSTAD
-                storageSftpSetOption(&my_res_state, RES_TRUSTAD);
-#endif // RES_TRUSTAD
-
-                // Query the server for SSHFP records
-                unsigned char answer[PACKET_SZ];
-
-                int len = storageSftpResNquery(&my_res_state, strZ(host), C_IN, T_SSHFP, answer, sizeof(answer));
-
-                // Check for errors.
-                // This is dependent on keeping the _DEFAULT_SOURCE for netdb.h. We can drop it and rewrite to a generic error if we
-                // think that's better.
-                if (len < 0)
-                {
-                    LOG_WARN_FMT(
-                        "res_nquery error [%d] %s '%s'", my_res_state.res_h_errno, hstrerror(my_res_state.res_h_errno), strZ(host));
-                }
-
-                // Overwrite the sshfp response with a known defined response for testing
-                Buffer *sshfp =
-                    storageGetP(storageNewReadP(storagePosixNewP(HRN_PATH_REPO_STR), STRDEF("test/data/muffat.debian.org.sshfp")));
-
-                // Verify we got the expected size
-                TEST_RESULT_INT((int)bufUsed(sshfp), 195, "expected size");
-
-                memset(answer, 0, sizeof(answer));
-                memmove(answer, bufPtr(sshfp), (size_t)bufUsed(sshfp));
-                len = (int)bufUsed(sshfp);
-
-#ifdef RES_TRUSTAD
-                // Check the RES_TRUSTAD flag
-                unsigned char res_trustad = ((HEADER *)answer)->ad;
-                if (res_trustad != 1)
-                    LOG_WARN("Host is untrusted, RES_TRUSTAD not set in response");
-#endif // RES_TRUSTAD
-
-#ifndef RES_TRUSTAD
-                LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via SSHFP", strZ(host));
-#endif // RES_TRUSTAD
-
-                // Initialize parsing the response
-                int rc;
-                ns_msg handle;
-                if ((rc = storageSftpNsInitparse(answer, len, &handle)) != 0)
-                    LOG_WARN_FMT("ns_initparse error [%d] %s for host '%s'", rc, hstrerror(rc), strZ(host));
-
-                // Attempt to verify the host via DNS provided fingerprint -- keyMatch && keyNoMatch
-                TEST_RESULT_BOOL(storageSftpVerifyFingerprint(this->session, handle), false, "keyMatch && keyNoMatch");
-
-                // Close the resolver
-                res_nclose(&my_res_state);
-            }
-        }
-        OBJ_NEW_END();
-
-        objFree(this);
-
-        TEST_RESULT_LOG(
-#ifndef RES_TRUSTAD
-            "P00   WARN: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via SSHFP\n"
-#endif // RES_TRUSTAD
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
-            " 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
-#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
-            " 'cf40a796b1e8775e60a77d410db745012e13410935489c411dbfcadf9d62de19'\n"
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
-            " 'ded38fadb5713bc6c772e788b5cc41223ca4072c061e5ef152b63ebb1b024096'\n"
-#else
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
-            " 'cf40a796b1e8775e60a77d410db745012e134109'\n"
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
-            " 'ded38fadb5713bc6c772e788b5cc41223ca4072c'\n"
-#endif // LIBSSH2_HOSTKEY_HASH_SHA256
-#ifdef RES_TRUSTAD
-            "P00 DETAIL: sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
-            " '87ac6bede384d2dc6254f396b83ed34856512e64'");
-#else
-            "P00 DETAIL: sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
-            " '87ac6bede384d2dc6254f396b83ed34856512e64'");
-#endif // RES_TRUSTAD
 
         harnessLogLevelReset();
 #else
@@ -8740,12 +8575,15 @@ testRun(void)
                 memmove(answer, bufPtr(sshfp), (size_t)bufUsed(sshfp));
                 len = (int)bufUsed(sshfp);
 
+                // Default res_trustad to unset
+                unsigned char res_trustad = 0;
 #ifdef RES_TRUSTAD
                 // Check the RES_TRUSTAD flag
-                unsigned char res_trustad = ((HEADER *)answer)->ad;
+                res_trustad = ((HEADER *)answer)->ad;
+#endif // RES_TRUSTAD
+
                 if (res_trustad != 1)
                     LOG_WARN("Host is untrusted, RES_TRUSTAD not set in response");
-#endif // RES_TRUSTAD
 
 #ifndef RES_TRUSTAD
                 LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via SSHFP", strZ(host));
@@ -8770,6 +8608,7 @@ testRun(void)
 
         TEST_RESULT_LOG(
 #ifndef RES_TRUSTAD
+            "P00   WARN: Host is untrusted, RES_TRUSTAD not set in response\n"
             "P00   WARN: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via SSHFP\n"
 #endif // RES_TRUSTAD
             "P00 DETAIL: sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
@@ -8916,15 +8755,18 @@ testRun(void)
                 memmove(answer, bufPtr(sshfp), (size_t)bufUsed(sshfp));
                 len = (int)bufUsed(sshfp);
 
+                // Default res_trustad to unset
+                unsigned char res_trustad = 0;
 #ifdef RES_TRUSTAD
                 // Check the RES_TRUSTAD flag
-                unsigned char res_trustad = ((HEADER *)answer)->ad;
-                if (res_trustad != 1)
-                    LOG_WARN("Host is untrusted, RES_TRUSTAD not set in response");
+                res_trustad = ((HEADER *)answer)->ad;
 #endif // RES_TRUSTAD
 
+                if (res_trustad != 1)
+                    LOG_WARN("Host is untrusted, RES_TRUSTAD not set in response");
+
 #ifndef RES_TRUSTAD
-                LOG_DETAIL_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via sshfp", strZ(host));
+                LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via sshfp", strZ(host));
 #endif // RES_TRUSTAD
 
                 // Initialize parsing the response
@@ -8946,7 +8788,8 @@ testRun(void)
 
         TEST_RESULT_LOG(
 #ifndef RES_TRUSTAD
-            "P00 DETAIL: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via sshfp\n"
+            "P00   WARN: Host is untrusted, RES_TRUSTAD not set in response\n"
+            "P00   WARN: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via sshfp\n"
 #endif // RES_TRUSTAD
             "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
             " 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
