@@ -1215,9 +1215,7 @@ testRun(void)
             "new storage (defaults)");
         TEST_RESULT_LOG(
             "P00   WARN: res_nquery error [4] No address associated with name 'no-data'\n"
-#ifdef RES_TRUSTAD
             "P00   WARN: Host cannot be verified via SSHFP, RES_TRUSTAD not set in response\n"
-#endif // RES_TRUSTAD
 #ifndef RES_TRUSTAD
             "P00   WARN: RES_TRUSTAD not supported on this OS, host 'no-data' cannot be verified via SSHFP\n"
 #endif // RES_TRUSTAD
