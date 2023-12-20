@@ -8434,20 +8434,20 @@ testRun(void)
             "P00   WARN: Host cannot be verified, RES_TRUSTAD not set in response\n"
             "P00   WARN: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via SSHFP\n"
 #endif // RES_TRUSTAD
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
             " 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
 #ifdef LIBSSH2_HOSTKEY_HASH_SHA256
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
             " 'cf40a796b1e8775e60a77d410db745012e13410935489c411dbfcadf9d62de19'\n"
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
             " 'ded38fadb5713bc6c772e788b5cc41223ca4072c061e5ef152b63ebb1b024096'\n"
 #else
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
             " 'cf40a796b1e8775e60a77d410db745012e134109'\n"
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
             " 'ded38fadb5713bc6c772e788b5cc41223ca4072c'\n"
 #endif // LIBSSH2_HOSTKEY_HASH_SHA256
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
             " '87ac6bede384d2dc6254f396b83ed34856512e64'");
 
         harnessLogLevelReset();
@@ -8789,24 +8789,24 @@ testRun(void)
             "P00   WARN: Host is untrusted, RES_TRUSTAD not set in response\n"
             "P00   WARN: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via sshfp\n"
 #endif // RES_TRUSTAD
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
             " 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
 #ifdef LIBSSH2_HOSTKEY_HASH_SHA256
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
             " 'cf40a796b1e8775e60a77d410db745012e13410935489c411dbfcadf9d62de19'\n"
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
             " 'ded38fadb5713bc6c772e788b5cc41223ca4072c061e5ef152b63ebb1b024096'\n"
 #else
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
             " 'cf40a796b1e8775e60a77d410db745012e134109'\n"
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
             " 'ded38fadb5713bc6c772e788b5cc41223ca4072c'\n"
 #endif // LIBSSH2_HOSTKEY_HASH_SHA256
 #ifdef RES_TRUSTAD
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
             " '87ac6bede384d2dc6254f396b83ed34856512e64'");
 #else
-            "P00   WARN: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
             " '87ac6bede384d2dc6254f396b83ed34856512e64'");
 #endif // RES_TRUSTAD
 

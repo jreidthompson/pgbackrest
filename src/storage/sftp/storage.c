@@ -1204,7 +1204,7 @@ storageSftpVerifyFingerprint(LIBSSH2_SESSION *const session, ns_msg handle)
                 "sshfp fingerprint match found for sshfp digest_type [%d] hashType [%d] '%s'", digest_type, hashType, buffer);
         }
         else
-            LOG_WARN_FMT(
+            LOG_DETAIL_FMT(
                 "no sshfp fingerprint match found for sshfp digest_type [%d] hashType [%d] '%s'", digest_type, hashType, buffer);
     }
 
