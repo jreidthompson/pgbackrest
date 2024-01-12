@@ -1702,7 +1702,7 @@ testRun(void)
             "P00   WARN: host 'localhost' not found in known hosts files, attempting to add host to "
             "'/home/" TEST_USER "/.ssh/known_hosts'\n"
             "P00   WARN: pgBackRest added new host 'localhost' to '/home/" TEST_USER "/.ssh/known_hosts'\n"
-            "P00 DETAIL: public key authentication with username vagrant and key /home/" TEST_USER "/.ssh/id_rsa succeeded");
+            "P00 DETAIL: public key authentication with username " TEST_USER " and key /home/" TEST_USER "/.ssh/id_rsa succeeded");
 
         harnessLogLevelReset();
 
