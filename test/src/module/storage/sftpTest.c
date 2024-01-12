@@ -647,12 +647,14 @@ testRun(void)
             {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_AGENT_LIST_IDENTITIES, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_AGENT_GET_IDENTITY, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_AGENT_USERAUTH, .resultInt = LIBSSH2_ERROR_EAGAIN},
+            {.function = HRNLIBSSH2_SESSION_BLOCK_DIRECTIONS, .resultInt = SSH2_BLOCK_READING},
             {.function = HRNLIBSSH2_AGENT_USERAUTH, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_SFTP_INIT},
             {.function = HRNLIBSSH2_SFTP_SHUTDOWN, .resultInt = 0},
             {.function = HRNLIBSSH2_AGENT_DISCONNECT, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_AGENT_FREE},
-            {.function = HRNLIBSSH2_SESSION_DISCONNECT_EX, .param = "[11,\"pgbackrest instance shutdown\",\"\"]", .resultInt = 0},
+            {.function = HRNLIBSSH2_SESSION_DISCONNECT_EX, .param = "[11,\"pgBackRest instance shutdown\",\"\"]", .resultInt = 0},
             {.function = HRNLIBSSH2_SESSION_FREE, .resultInt = 0},
             {.function = NULL}
         });
@@ -717,7 +719,7 @@ testRun(void)
             {.function = HRNLIBSSH2_SFTP_SHUTDOWN, .resultInt = 0},
             {.function = HRNLIBSSH2_AGENT_DISCONNECT, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_AGENT_FREE},
-            {.function = HRNLIBSSH2_SESSION_DISCONNECT_EX, .param = "[11,\"pgbackrest instance shutdown\",\"\"]", .resultInt = 0},
+            {.function = HRNLIBSSH2_SESSION_DISCONNECT_EX, .param = "[11,\"pgBackRest instance shutdown\",\"\"]", .resultInt = 0},
             {.function = HRNLIBSSH2_SESSION_FREE, .resultInt = 0},
             {.function = NULL}
         });
@@ -808,7 +810,7 @@ testRun(void)
             {.function = HRNLIBSSH2_SFTP_SHUTDOWN, .resultInt = 0},
             {.function = HRNLIBSSH2_AGENT_DISCONNECT, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_AGENT_FREE},
-            {.function = HRNLIBSSH2_SESSION_DISCONNECT_EX, .param = "[11,\"pgbackrest instance shutdown\",\"\"]", .resultInt = 0},
+            {.function = HRNLIBSSH2_SESSION_DISCONNECT_EX, .param = "[11,\"pgBackRest instance shutdown\",\"\"]", .resultInt = 0},
             {.function = HRNLIBSSH2_SESSION_FREE, .resultInt = 0},
             {.function = NULL}
         });
@@ -869,6 +871,9 @@ testRun(void)
             {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
             {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_KNOWNHOST_INIT, .resultNull = true},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERRNO, .resultInt = LIBSSH2_ERROR_ALLOC},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .resultInt = LIBSSH2_ERROR_ALLOC,
+             .errMsg = (char *)"Unable to allocate memory for known-hosts collection"},
             {.function = NULL}
         });
 
@@ -899,7 +904,7 @@ testRun(void)
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
                 .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
             ServiceError,
-            "failure during libssh2_knownhost_init");
+            "failure during libssh2_knownhost_init: libssh2 errno [-6] Unable to allocate memory for known-hosts collection");
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("libssh2_session_hostkey fail - return NULL - hostKeyCheckType = yes");
@@ -1696,7 +1701,8 @@ testRun(void)
             "provided [-16]\n"
             "P00   WARN: host 'localhost' not found in known hosts files, attempting to add host to "
             "'/home/" TEST_USER "/.ssh/known_hosts'\n"
-            "P00   WARN: pgBackRest added new host 'localhost' to '/home/" TEST_USER "/.ssh/known_hosts'");
+            "P00   WARN: pgBackRest added new host 'localhost' to '/home/" TEST_USER "/.ssh/known_hosts'\n"
+            "P00 DETAIL: public key authentication with username vagrant and key /home/vagrant/.ssh/id_rsa succeeded");
 
         harnessLogLevelReset();
 

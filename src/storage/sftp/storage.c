@@ -1453,8 +1453,12 @@ storageSftpNew(
                 THROW_FMT(
                     ServiceError,
                     "failure connecting to ssh-agent %s[%d]%s",
-                    param.identityAgent == NULL ? "" : zNewFmt("'%s' ", strZ(param.identityAgent)), rc,
-                    zNewFmt(": %s", ssh2ErrMsg));
+#if LIBSSH2_VERSION_NUM >= 0x010900
+                    param.identityAgent == NULL ? "" : zNewFmt("'%s' ", strZ(param.identityAgent)),
+#else
+                    "",
+#endif
+                    rc, zNewFmt(": %s", ssh2ErrMsg));
             }
 
             if ((rc = libssh2_agent_list_identities(this->agent)) != 0)
