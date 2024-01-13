@@ -656,7 +656,7 @@ storageSftpIdentityFilesList(const StringList *const privKeys)
                 else
                     strLstAdd(result, filePath);
             }
-        g
+        }
     }
     MEM_CONTEXT_TEMP_END();
 
