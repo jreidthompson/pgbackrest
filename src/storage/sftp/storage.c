@@ -1442,7 +1442,13 @@ storageSftpNew(
                 LIBSSH2_KNOWNHOSTS *const knownHostsList = libssh2_knownhost_init(this->session);
 
                 if (knownHostsList == NULL)
-                    THROW_FMT(ServiceError, "failure during libssh2_knownhost_init");
+                {
+                    const int rc = libssh2_session_last_errno(this->session);
+
+                    THROW_FMT(
+                        ServiceError, "failure during libssh2_knownhost_init: libssh2 errno [%d] %s", rc,
+                        strZ(storageSftpLibSsh2SessionLastError(this->session)));
+                }
 
                 // Get the list of known host files to search
                 const StringList *const knownHostsPathList = storageSftpKnownHostsFilesList(param.knownHosts);
@@ -1462,14 +1468,10 @@ storageSftpNew(
                             LOG_DETAIL_FMT("libssh2 '%s' file is empty", currentKnownHostFile);
                         else
                         {
-                            char *libSsh2ErrMsg;
-                            int libSsh2ErrMsgLen;
-
-                            // Get the libssh2 error message
-                            rc = libssh2_session_last_error(this->session, &libSsh2ErrMsg, &libSsh2ErrMsgLen, 0);
+                            const String *const libssh2ErrMsg = storageSftpLibSsh2SessionLastError(this->session);
 
                             LOG_DETAIL_FMT(
-                                "libssh2 read '%s' failed: libssh2 errno [%d] %s", currentKnownHostFile, rc, libSsh2ErrMsg);
+                                "libssh2 read '%s' failed: libssh2 errno [%d] %s", currentKnownHostFile, rc, strZ(libssh2ErrMsg));
                         }
                     }
                     else
