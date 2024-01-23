@@ -2863,6 +2863,14 @@ test/src/common/harnessServer.h:
   class: test/harness
   type: c/h
 
+test/src/common/harnessSftpResolv.c:
+  class: test/harness
+  type: c
+
+test/src/common/harnessSftpResolv.h:
+  class: test/harness
+  type: c/h
+
 test/src/common/harnessSocket.c:
   class: test/harness
   type: c

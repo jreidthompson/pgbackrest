@@ -277,6 +277,7 @@ executable(
         lib_lz4,
         lib_pq,
         lib_ssh2,
+        lib_resolv,
         lib_xml,
         lib_z,
         lib_zstd,

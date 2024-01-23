@@ -3408,6 +3408,9 @@ case $host_os in *\ *) host_os=`echo "$host_os" | sed 's/ /-/g'`;; esac
 CFLAGS="${CFLAGS} -std=c99"
 
 
+# BSD_SOURCE can be removed when support for RHEL7 is dropped
+# DEFAULT_SOURCE can be removed when support for RHEL7 is dropped if we rewrite a few hstrerror calls to a generic error message
+# ----------------------------------------------------------------------------------------------------------------------------------
 case $host_os in
     darwin*)
         CPPFLAGS="${CPPFLAGS} -D_DARWIN_C_SOURCE"
@@ -3415,6 +3418,10 @@ case $host_os in
         ;;
 
     linux*)
+        CPPFLAGS="${CPPFLAGS} -D_DEFAULT_SOURCE"
+
+        CPPFLAGS="${CPPFLAGS} -D_BSD_SOURCE"
+
         CPPFLAGS="${CPPFLAGS} -D_POSIX_C_SOURCE=200809L"
 
         ;;
@@ -4086,7 +4093,7 @@ fi
 fi
 
 
-# Check optional libSSH2 library
+# Check optional libssh2 library
 # ----------------------------------------------------------------------------------------------------------------------------------
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libssh2_init in -lssh2" >&5
 printf %s "checking for libssh2_init in -lssh2... " >&6; }
@@ -4184,6 +4191,147 @@ fi
 
 fi
 
+
+# Check for optional resolv library if we have libssh2
+# ----------------------------------------------------------------------------------------------------------------------------------
+if test "x$ac_cv_lib_ssh2_libssh2_init" = "xyes"
+then
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for ns_initparse in -lresolv" >&5
+printf %s "checking for ns_initparse in -lresolv... " >&6; }
+if test ${ac_cv_lib_resolv_ns_initparse+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lresolv  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char ns_initparse ();
+int
+main (void)
+{
+return ns_initparse ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_resolv_ns_initparse=yes
+else $as_nop
+  ac_cv_lib_resolv_ns_initparse=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_resolv_ns_initparse" >&5
+printf "%s\n" "$ac_cv_lib_resolv_ns_initparse" >&6; }
+if test "x$ac_cv_lib_resolv_ns_initparse" = xyes
+then :
+  printf "%s\n" "#define HAVE_LIBRESOLV 1" >>confdefs.h
+
+  LIBS="-lresolv $LIBS"
+
+fi
+
+    ac_fn_c_check_header_compile "$LINENO" "sys/types.h" "ac_cv_header_sys_types_h" "#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#  include <netinet/in.h>   /* inet_ functions / structs */
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#  include <arpa/nameser.h> /* DNS HEADER struct */
+#endif
+#ifdef HAVE_NETDB_H
+#  include <netdb.h>
+#endif
+"
+if test "x$ac_cv_header_sys_types_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_SYS_TYPES_H 1" >>confdefs.h
+
+fi
+ac_fn_c_check_header_compile "$LINENO" "netinet/in.h" "ac_cv_header_netinet_in_h" "#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#  include <netinet/in.h>   /* inet_ functions / structs */
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#  include <arpa/nameser.h> /* DNS HEADER struct */
+#endif
+#ifdef HAVE_NETDB_H
+#  include <netdb.h>
+#endif
+"
+if test "x$ac_cv_header_netinet_in_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_NETINET_IN_H 1" >>confdefs.h
+
+fi
+ac_fn_c_check_header_compile "$LINENO" "arpa/nameser.h" "ac_cv_header_arpa_nameser_h" "#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#  include <netinet/in.h>   /* inet_ functions / structs */
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#  include <arpa/nameser.h> /* DNS HEADER struct */
+#endif
+#ifdef HAVE_NETDB_H
+#  include <netdb.h>
+#endif
+"
+if test "x$ac_cv_header_arpa_nameser_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_ARPA_NAMESER_H 1" >>confdefs.h
+
+fi
+ac_fn_c_check_header_compile "$LINENO" "netdb.h" "ac_cv_header_netdb_h" "#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#  include <netinet/in.h>   /* inet_ functions / structs */
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#  include <arpa/nameser.h> /* DNS HEADER struct */
+#endif
+#ifdef HAVE_NETDB_H
+#  include <netdb.h>
+#endif
+"
+if test "x$ac_cv_header_netdb_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_NETDB_H 1" >>confdefs.h
+
+fi
+ac_fn_c_check_header_compile "$LINENO" "resolv.h" "ac_cv_header_resolv_h" "#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#  include <netinet/in.h>   /* inet_ functions / structs */
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#  include <arpa/nameser.h> /* DNS HEADER struct */
+#endif
+#ifdef HAVE_NETDB_H
+#  include <netdb.h>
+#endif
+"
+if test "x$ac_cv_header_resolv_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_RESOLV_H 1" >>confdefs.h
+
+fi
+
+
+fi
 
 # Check optional zst library. Ignore any versions below 1.0.
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -5750,4 +5898,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
-# Generated from src/build/configure.ac sha1 e9fe59c2eda5217a0f6476af90083fafb8b24f94
+# Generated from src/build/configure.ac sha1 d02753966f72fc0ea5ee493613a5b2aac0852b5c

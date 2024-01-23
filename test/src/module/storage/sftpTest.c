@@ -14,6 +14,7 @@ Test SFTP Storage
 #include "common/harnessFd.h"
 #include "common/harnessFork.h"
 #include "common/harnessLibSsh2.h"
+#include "common/harnessSftpResolv.h"
 #include "common/harnessSocket.h"
 #include "common/harnessStorage.h"
 
@@ -1134,6 +1135,7 @@ testRun(void)
                 .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
                 .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifyViaSshfp, repoIdx),
                 .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
             "new storage (defaults)");
         TEST_RESULT_LOG(
@@ -1149,6 +1151,301 @@ testRun(void)
         harnessLogLevelReset();
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("sftp session init success - add host to known_hosts file RSA, sshfp, res_nquery fail, shimmed");
+
+        // Install shim for SFTP libresolv functions
+        hrnSftpResolvShimInstall();
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_KNOWNHOST_INIT},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" KNOWNHOSTS_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" KNOWNHOSTS2_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"Failed to open file", .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" ETC_KNOWNHOSTS_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"Failed to open file", .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" ETC_KNOWNHOSTS2_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"Failed to open file", .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_SESSION_HOSTKEY, .len = 20, .type = LIBSSH2_HOSTKEY_TYPE_RSA, .resultZ = HOSTKEY},
+            {.function = HRNLIBSSH2_KNOWNHOST_CHECKP, .param = "[\"no-data\",22,\"" HOSTKEY "\",20,65537]",
+             .resultInt = LIBSSH2_KNOWNHOST_CHECK_NOTFOUND},
+            {.function = HRNLIBSSH2_KNOWNHOST_INIT},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" KNOWNHOSTS_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_KNOWNHOST_ADDC,
+             .param = "[\"no-data\",null,\"12345678901234567890\",20,\"Generated from pgBackRest\",25,589825]"},
+            {.function = HRNLIBSSH2_KNOWNHOST_WRITEFILE, .param = "[\"" KNOWNHOSTS_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_CSTR "\",\"" KEYPRIV_CSTR "\",null]",
+             .resultInt = 0},
+            {.function = HRNLIBSSH2_SFTP_INIT},
+            HRNLIBSSH2_MACRO_SHUTDOWN()
+        });
+
+        argList = strLstNew();
+        hrnCfgArgRawZ(argList, cfgOptStanza, "test");
+        hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
+        hrnCfgArgRawZ(argList, cfgOptRepo, "1");
+        hrnCfgArgRawZ(argList, cfgOptRepoPath, TEST_PATH);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
+        hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "no-data");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifyViaSshfp, "y");
+        HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
+
+        TEST_ASSIGN(
+            storageTest,
+            storageSftpNewP(
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), cfgOptionIdxStr(cfgOptRepoSftpPrivateKeyFile, repoIdx),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifyViaSshfp, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
+            "new storage (defaults)");
+        TEST_RESULT_LOG(
+            "P00   WARN: res_nquery error [4] No address associated with name 'no-data'\n"
+            "P00   WARN: Host cannot be verified via SSHFP, RES_TRUSTAD not set in response\n"
+#ifndef RES_TRUSTAD
+            "P00   WARN: RES_TRUSTAD not supported on this OS, host 'no-data' cannot be verified via SSHFP\n"
+#endif // RES_TRUSTAD
+            "P00   WARN: ns_initparse error [-1] Resolver internal error for host 'no-data'\n"
+            "P00   WARN: host 'no-data' not found in known hosts files, attempting to add host to "
+            "'/home/" TEST_USER "/.ssh/known_hosts'\n"
+            "P00   WARN: pgBackRest added new host 'no-data' to '/home/" TEST_USER "/.ssh/known_hosts'");
+
+        memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("sftp session init success - add host to known_hosts file RSA, sshfp fail");
+
+#ifdef RES_TRUSTAD
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_KNOWNHOST_INIT},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" KNOWNHOSTS_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" KNOWNHOSTS2_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"Failed to open file", .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" ETC_KNOWNHOSTS_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"Failed to open file", .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" ETC_KNOWNHOSTS2_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"Failed to open file", .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_SESSION_HOSTKEY, .len = 20, .type = LIBSSH2_HOSTKEY_TYPE_RSA, .resultZ = HOSTKEY},
+            {.function = HRNLIBSSH2_KNOWNHOST_CHECKP, .param = "[\"trustad-fail\",22,\"" HOSTKEY "\",20,65537]",
+             .resultInt = LIBSSH2_KNOWNHOST_CHECK_NOTFOUND},
+            {.function = HRNLIBSSH2_KNOWNHOST_INIT},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" KNOWNHOSTS_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_KNOWNHOST_ADDC,
+             .param = "[\"trustad-fail\",null,\"12345678901234567890\",20,\"Generated from pgBackRest\",25,589825]"},
+            {.function = HRNLIBSSH2_KNOWNHOST_WRITEFILE, .param = "[\"" KNOWNHOSTS_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_CSTR "\",\"" KEYPRIV_CSTR "\",null]",
+             .resultInt = 0},
+            {.function = HRNLIBSSH2_SFTP_INIT},
+            HRNLIBSSH2_MACRO_SHUTDOWN()
+        });
+
+        argList = strLstNew();
+        hrnCfgArgRawZ(argList, cfgOptStanza, "test");
+        hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
+        hrnCfgArgRawZ(argList, cfgOptRepo, "1");
+        hrnCfgArgRawZ(argList, cfgOptRepoPath, TEST_PATH);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
+        hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "trustad-fail");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifyViaSshfp, "y");
+        HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
+
+        TEST_ASSIGN(
+            storageTest,
+            storageSftpNewP(
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), cfgOptionIdxStr(cfgOptRepoSftpPrivateKeyFile, repoIdx),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifyViaSshfp, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
+            "new storage (defaults)");
+        TEST_RESULT_LOG(
+            "P00   WARN: Host cannot be verified via SSHFP, RES_TRUSTAD not set in response\n"
+            "P00   WARN: host 'trustad-fail' not found in known hosts files, attempting to add host to "
+            "'/home/" TEST_USER "/.ssh/known_hosts'\n"
+            "P00   WARN: pgBackRest added new host 'trustad-fail' to '/home/" TEST_USER "/.ssh/known_hosts'");
+
+        memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_LOG("RES_TRUSTAD not supported by OS");
+#endif // RES_TRUSTAD
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("sftp session init success - add host to known_hosts file RSA, sshfp pass");
+
+#ifdef RES_TRUSTAD
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SFTP_INIT},
+            HRNLIBSSH2_MACRO_SHUTDOWN()
+        });
+
+        argList = strLstNew();
+        hrnCfgArgRawZ(argList, cfgOptStanza, "test");
+        hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
+        hrnCfgArgRawZ(argList, cfgOptRepo, "1");
+        hrnCfgArgRawZ(argList, cfgOptRepoPath, TEST_PATH);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
+        hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "trustad-pass");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifyViaSshfp, "y");
+        HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
+
+        storageTest = NULL;
+
+        TEST_ASSIGN(
+            storageTest,
+            storageSftpNewP(
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), cfgOptionIdxStr(cfgOptRepoSftpPrivateKeyFile, repoIdx),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifyViaSshfp, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
+            "new storage (defaults)");
+
+        memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_LOG("RES_TRUSTAD not supported by OS");
+#endif // RES_TRUSTAD
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("sftp session init success - add host to known_hosts file RSA, storageSftpResInit fail");
+
+#ifdef RES_TRUSTAD
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_KNOWNHOST_INIT},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" KNOWNHOSTS_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" KNOWNHOSTS2_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"Failed to open file", .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" ETC_KNOWNHOSTS_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"Failed to open file", .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" ETC_KNOWNHOSTS2_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"Failed to open file", .resultInt = LIBSSH2_ERROR_FILE},
+            {.function = HRNLIBSSH2_SESSION_HOSTKEY, .len = 20, .type = LIBSSH2_HOSTKEY_TYPE_RSA, .resultZ = HOSTKEY},
+            {.function = HRNLIBSSH2_KNOWNHOST_CHECKP, .param = "[\"trustad-fail\",22,\"" HOSTKEY "\",20,65537]",
+             .resultInt = LIBSSH2_KNOWNHOST_CHECK_NOTFOUND},
+            {.function = HRNLIBSSH2_KNOWNHOST_INIT},
+            {.function = HRNLIBSSH2_KNOWNHOST_READFILE, .param = "[\"" KNOWNHOSTS_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_KNOWNHOST_ADDC,
+             .param = "[\"trustad-fail\",null,\"12345678901234567890\",20,\"Generated from pgBackRest\",25,589825]"},
+            {.function = HRNLIBSSH2_KNOWNHOST_WRITEFILE, .param = "[\"" KNOWNHOSTS_FILE_CSTR "\",1]",
+             .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_CSTR "\",\"" KEYPRIV_CSTR "\",null]",
+             .resultInt = 0},
+            {.function = HRNLIBSSH2_SFTP_INIT},
+            HRNLIBSSH2_MACRO_SHUTDOWN()
+        });
+
+        // Use the RES_IGNTC option indicate when to return a failure from res_ninit when shimmed
+        my_res_state.options |= RES_IGNTC;
+
+        argList = strLstNew();
+        hrnCfgArgRawZ(argList, cfgOptStanza, "test");
+        hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
+        hrnCfgArgRawZ(argList, cfgOptRepo, "1");
+        hrnCfgArgRawZ(argList, cfgOptRepoPath, TEST_PATH);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
+        hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "trustad-fail");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifyViaSshfp, "y");
+        HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
+
+        TEST_ASSIGN(
+            storageTest,
+            storageSftpNewP(
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), cfgOptionIdxStr(cfgOptRepoSftpPrivateKeyFile, repoIdx),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .sshfp = cfgOptionIdxBool(cfgOptRepoSftpVerifyViaSshfp, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
+            "new storage (defaults)");
+        TEST_RESULT_LOG(
+            "P00   WARN: unable to initialize resolver\n"
+            "P00   WARN: Host cannot be verified via SSHFP, RES_TRUSTAD not set in response\n"
+            "P00   WARN: host 'trustad-fail' not found in known hosts files, attempting to add host to "
+            "'/home/" TEST_USER "/.ssh/known_hosts'\n"
+            "P00   WARN: pgBackRest added new host 'trustad-fail' to '/home/" TEST_USER "/.ssh/known_hosts'");
+
+        memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#else
+        TEST_LOG("RES_TRUSTAD not supported by OS");
+#endif // RES_TRUSTAD
+
+        // Uninstall shim for SFTP libresolv functions
+        hrnSftpResolvShimUninstall();
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("sftp session init success - hostKeyCheckType = accept-new - add host to user's known_hosts file DSS");
@@ -1183,6 +1480,21 @@ testRun(void)
             {.function = HRNLIBSSH2_SFTP_INIT},
             HRNLIBSSH2_MACRO_SHUTDOWN()
         });
+
+        argList = strLstNew();
+        hrnCfgArgRawZ(argList, cfgOptStanza, "test");
+        hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
+        hrnCfgArgRawZ(argList, cfgOptRepo, "1");
+        hrnCfgArgRawZ(argList, cfgOptRepoPath, TEST_PATH);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
+        hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "localhost");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpVerifyViaSshfp, "y");
+        HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
         storageTest = NULL;
 
@@ -7837,6 +8149,675 @@ testRun(void)
                 LIBSSH2_ERROR_SFTP_PROTOCOL, 16, &FileRemoveError, NULL, NULL),
             FileRemoveError,
             "libssh2 error [-31]: sftp error [16]");
+#else
+        TEST_LOG(PROJECT_NAME " not built with sftp support");
+#endif // HAVE_LIBSSH2
+    }
+
+    // *****************************************************************************************************************************
+    if (testBegin("storageSftpVerifyFingerprint()"))
+    {
+#ifdef HAVE_LIBSSH2
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("storageSftpVerifyFingerprint() no sshfp fingerprint records");
+
+        harnessLogLevelSet(logLevelDetail);
+
+        TimeMSec timeout = 500;
+        const StorageSftpNewParam param = {.sshfp = true};
+
+        // Configure a valid host so that we can successfully initialize the resolver
+        const String *host = STRDEF("www.postgresql.org");
+        unsigned int port = 22;
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = 0},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = 0},
+            {.function = NULL},
+        });
+
+        // Step through the sftp storage startup process
+        OBJ_NEW_BEGIN(StorageSftp, .childQty = MEM_CONTEXT_QTY_MAX, .callbackQty = 1)
+        {
+            *this = (StorageSftp)
+            {
+                .interface = storageInterfaceSftp,
+                .timeout = timeout,
+            };
+
+            // Init SFTP session
+            if (libssh2_init(0) != 0)
+                THROW_FMT(ServiceError, "unable to init libssh2");
+
+            this->ioSession = ioClientOpen(sckClientNew(host, port, timeout, timeout));
+            this->session = libssh2_session_init();
+
+            if (this->session == NULL)
+                THROW_FMT(ServiceError, "unable to init libssh2 session");
+
+            // Set session to non-blocking
+            libssh2_session_set_blocking(this->session, 0);
+
+            // Perform handshake
+            int rc;
+
+            do
+            {
+                rc = libssh2_session_handshake(this->session, ioSessionFd(this->ioSession));
+            }
+            while (storageSftpWaitFd(this, rc));
+
+            if (rc == LIBSSH2_ERROR_EAGAIN)
+                THROW_FMT(ServiceError, "timeout during libssh2 handshake [%d]", rc);
+
+            if (rc != 0)
+                THROW_FMT(ServiceError, "libssh2 handshake failed [%d]", rc);
+
+            if (param.sshfp)
+            {
+                if (storageSftpResNinit(&my_res_state) != 0)
+                    LOG_WARN("unable to initialize resolver");
+
+#ifdef RES_TRUSTAD
+                // Set the resolver to use TRUSTAD
+                storageSftpSetOption(&my_res_state, RES_TRUSTAD);
+#endif // RES_TRUSTAD
+
+                // Query the server for SSHFP records
+                unsigned char answer[PACKET_SZ];
+
+                int len = storageSftpResNquery(&my_res_state, strZ(host), C_IN, T_SSHFP, answer, sizeof(answer));
+
+                // Check for errors.
+                // This is dependent on keeping the _DEFAULT_SOURCE for netdb.h. We can drop it and rewrite to a generic error if we
+                // think that's better.
+                if (len < 0)
+                {
+                    LOG_WARN_FMT(
+                        "res_nquery error [%d] %s '%s'", my_res_state.res_h_errno, hstrerror(my_res_state.res_h_errno), strZ(host));
+                }
+
+                // Overwrite the sshfp response with a known defined response for testing - this response has ad set, but no sshfp
+                // records
+                Buffer *sshfp =
+                    storageGetP(storageNewReadP(storagePosixNewP(HRN_PATH_REPO_STR), STRDEF("test/data/www.postgresql.org.sshfp")));
+
+                // Verify we got the expected size
+                TEST_RESULT_INT((int)bufUsed(sshfp), 112, "expected size 112");
+
+                memset(answer, 0, sizeof(answer));
+                memmove(answer, bufPtr(sshfp), (size_t)bufUsed(sshfp));
+                len = (int)bufUsed(sshfp);
+
+                // Default res_trustad to unset
+                unsigned char res_trustad = 0;
+#ifdef RES_TRUSTAD
+                // Check the RES_TRUSTAD flag
+                res_trustad = ((HEADER *)answer)->ad;
+#endif // RES_TRUSTAD
+
+                if (res_trustad != 1)
+                    LOG_WARN("Host cannot be verified via SSHFP, RES_TRUSTAD not set in response");
+
+#ifndef RES_TRUSTAD
+                LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via SSHFP", strZ(host));
+#endif // RES_TRUSTAD
+
+                // Initialize parsing the response
+                int rc;
+                ns_msg handle;
+                if ((rc = storageSftpNsInitparse(answer, len, &handle)) != 0)
+                    LOG_WARN_FMT("ns_initparse error [%d] %s for host '%s'", rc, hstrerror(rc), strZ(host));
+
+                // Attempt to verify the host via DNS provided fingerprint - host key not found in SSHFP record
+                TEST_RESULT_BOOL(
+                    storageSftpVerifyFingerprint(this->session, handle), false, "return false, host key not found in SSHFP record");
+
+                // Close the resolver
+                res_nclose(&my_res_state);
+            }
+        }
+        OBJ_NEW_END();
+
+        objFree(this);
+
+        TEST_RESULT_LOG(
+#ifndef RES_TRUSTAD
+            "P00   WARN: Host cannot be verified via SSHFP, RES_TRUSTAD not set in response\n"
+            "P00   WARN: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via SSHFP\n"
+#endif // RES_TRUSTAD
+            "P00   WARN: no SSHFP records for host found in DNS");
+
+        harnessLogLevelReset();
+#else
+        TEST_LOG(PROJECT_NAME " not built with sftp support");
+#endif // HAVE_LIBSSH2
+    }
+
+    // *****************************************************************************************************************************
+    if (testBegin("storageSftpVerifyFingerprint()"))
+    {
+#ifdef HAVE_LIBSSH2
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("storageSftpVerifyFingerprint() fail");
+
+        harnessLogLevelSet(logLevelDetail);
+
+        TimeMSec timeout = 500;
+        const StorageSftpNewParam param = {.sshfp = true};
+
+        // Configure a valid host so that we can successfully initialize the resolver
+        const String *host = STRDEF("www.postgresql.org");
+        unsigned int port = 22;
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = 0},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = 0},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultNull = true},
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[3]", .resultZ = HOSTKEY},
+#else
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = HOSTKEY},
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[3]", .resultNull = true},
+#else
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultNull = true},
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultNull = true},
+            {.function = NULL},
+        });
+
+        // Step through the sftp storage startup process
+        OBJ_NEW_BEGIN(StorageSftp, .childQty = MEM_CONTEXT_QTY_MAX, .callbackQty = 1)
+        {
+            *this = (StorageSftp)
+            {
+                .interface = storageInterfaceSftp,
+                .timeout = timeout,
+            };
+
+            // Init SFTP session
+            if (libssh2_init(0) != 0)
+                THROW_FMT(ServiceError, "unable to init libssh2");
+
+            this->ioSession = ioClientOpen(sckClientNew(host, port, timeout, timeout));
+            this->session = libssh2_session_init();
+
+            if (this->session == NULL)
+                THROW_FMT(ServiceError, "unable to init libssh2 session");
+
+            // Set session to non-blocking
+            libssh2_session_set_blocking(this->session, 0);
+
+            // Perform handshake
+            int rc;
+
+            do
+            {
+                rc = libssh2_session_handshake(this->session, ioSessionFd(this->ioSession));
+            }
+            while (storageSftpWaitFd(this, rc));
+
+            if (rc == LIBSSH2_ERROR_EAGAIN)
+                THROW_FMT(ServiceError, "timeout during libssh2 handshake [%d]", rc);
+
+            if (rc != 0)
+                THROW_FMT(ServiceError, "libssh2 handshake failed [%d]", rc);
+
+            if (param.sshfp)
+            {
+                if (storageSftpResNinit(&my_res_state) != 0)
+                    LOG_WARN("unable to initialize resolver");
+
+#ifdef RES_TRUSTAD
+                // Set the resolver to use TRUSTAD
+                storageSftpSetOption(&my_res_state, RES_TRUSTAD);
+#endif // RES_TRUSTAD
+
+                // Query the server for SSHFP records
+                unsigned char answer[PACKET_SZ];
+
+                int len = storageSftpResNquery(&my_res_state, strZ(host), C_IN, T_SSHFP, answer, sizeof(answer));
+
+                // Check for errors.
+                // This is dependent on keeping the _DEFAULT_SOURCE for netdb.h. We can drop it and rewrite to a generic error if we
+                // think that's better.
+                if (len < 0)
+                {
+                    LOG_WARN_FMT(
+                        "res_nquery error [%d] %s '%s'", my_res_state.res_h_errno, hstrerror(my_res_state.res_h_errno), strZ(host));
+                }
+
+                // Overwrite the sshfp response with a known defined response for testing - this response has ad set and 4 sshfp
+                // records
+                Buffer *sshfp =
+                    storageGetP(storageNewReadP(storagePosixNewP(HRN_PATH_REPO_STR), STRDEF("test/data/muffat.debian.org.sshfp")));
+
+                // Verify we got the expected size
+                TEST_RESULT_INT((int)bufUsed(sshfp), 195, "expected size 195");
+
+                memset(answer, 0, sizeof(answer));
+                memmove(answer, bufPtr(sshfp), (size_t)bufUsed(sshfp));
+                len = (int)bufUsed(sshfp);
+
+                // Default res_trustad to unset
+                unsigned char res_trustad = 0;
+#ifdef RES_TRUSTAD
+                // Check the RES_TRUSTAD flag
+                res_trustad = ((HEADER *)answer)->ad;
+#endif // RES_TRUSTAD
+
+                if (res_trustad != 1)
+                    LOG_WARN("Host cannot be verified, RES_TRUSTAD not set in response");
+
+#ifndef RES_TRUSTAD
+                LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via SSHFP", strZ(host));
+#endif // RES_TRUSTAD
+
+                // Initialize parsing the response
+                int rc;
+                ns_msg handle;
+                if ((rc = storageSftpNsInitparse(answer, len, &handle)) != 0)
+                    LOG_WARN_FMT("ns_initparse error [%d] %s for host '%s'", rc, hstrerror(rc), strZ(host));
+
+                // Attempt to verify the host via DNS provided fingerprint -- no keys match
+                TEST_RESULT_BOOL(storageSftpVerifyFingerprint(this->session, handle), false, "no keys match");
+
+                // Close the resolver
+                res_nclose(&my_res_state);
+            }
+        }
+        OBJ_NEW_END();
+
+        objFree(this);
+
+        TEST_RESULT_LOG(
+#ifndef RES_TRUSTAD
+            "P00   WARN: Host cannot be verified, RES_TRUSTAD not set in response\n"
+            "P00   WARN: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via SSHFP\n"
+#endif // RES_TRUSTAD
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
+            " 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
+            " 'cf40a796b1e8775e60a77d410db745012e13410935489c411dbfcadf9d62de19'\n"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
+            " 'ded38fadb5713bc6c772e788b5cc41223ca4072c061e5ef152b63ebb1b024096'\n"
+#else
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
+            " 'cf40a796b1e8775e60a77d410db745012e134109'\n"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
+            " 'ded38fadb5713bc6c772e788b5cc41223ca4072c'\n"
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
+            " '87ac6bede384d2dc6254f396b83ed34856512e64'");
+
+        harnessLogLevelReset();
+#else
+        TEST_LOG(PROJECT_NAME " not built with sftp support");
+#endif // HAVE_LIBSSH2
+    }
+
+    // *****************************************************************************************************************************
+    if (testBegin("storageSftpVerifyFingerprint()"))
+    {
+#ifdef HAVE_LIBSSH2
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("storageSftpVerifyFingerprint() keyMatch");
+
+        harnessLogLevelSet(logLevelDetail);
+
+        TimeMSec timeout = 500;
+        const StorageSftpNewParam param = {.sshfp = true};
+
+        // Configure a valid host so that we can successfully initialize the resolver
+        const String *host = STRDEF("www.postgresql.org");
+        unsigned int port = 22;
+
+        // Create binary representation of the host keys that will generate a successful match
+        unsigned char fingerprint1[1024];
+        decodeToBin(encodingHex, "BDC1F467AB69238FC4173C20658097835379DBE5", fingerprint1);
+        unsigned char fingerprint2[1024];
+        decodeToBin(encodingHex, "CF40A796B1E8775E60A77D410DB745012E13410935489C411DBFCADF9D62DE19", fingerprint2);
+        unsigned char fingerprint3[1024];
+        decodeToBin(encodingHex, "DED38FADB5713BC6C772E788B5CC41223CA4072C061E5EF152B63EBB1B024096", fingerprint3);
+        unsigned char fingerprint4[1024];
+        decodeToBin(encodingHex, "87ac6bede384d2dc6254f396b83ed34856512e64", fingerprint4);
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = 0},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = 0},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = (char *)fingerprint1},
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[3]", .resultZ = (char *)fingerprint2},
+#else
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = (char *)fingerprint2},
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[3]", .resultZ = (char *)fingerprint3},
+#else
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = (char *)fingerprint3},
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = (char *)fingerprint4},
+            {.function = NULL},
+        });
+
+        OBJ_NEW_BEGIN(StorageSftp, .childQty = MEM_CONTEXT_QTY_MAX, .callbackQty = 1)
+        {
+            *this = (StorageSftp)
+            {
+                .interface = storageInterfaceSftp,
+                .timeout = timeout,
+            };
+
+            // Init SFTP session
+            if (libssh2_init(0) != 0)
+                THROW_FMT(ServiceError, "unable to init libssh2");
+
+            this->ioSession = ioClientOpen(sckClientNew(host, port, timeout, timeout));
+            this->session = libssh2_session_init();
+
+            if (this->session == NULL)
+                THROW_FMT(ServiceError, "unable to init libssh2 session");
+
+            // Set session to non-blocking
+            libssh2_session_set_blocking(this->session, 0);
+
+            // Perform handshake
+            int rc;
+
+            do
+            {
+                rc = libssh2_session_handshake(this->session, ioSessionFd(this->ioSession));
+            }
+            while (storageSftpWaitFd(this, rc));
+
+            if (rc == LIBSSH2_ERROR_EAGAIN)
+                THROW_FMT(ServiceError, "timeout during libssh2 handshake [%d]", rc);
+
+            if (rc != 0)
+                THROW_FMT(ServiceError, "libssh2 handshake failed [%d]", rc);
+
+            if (param.sshfp)
+            {
+                if (storageSftpResNinit(&my_res_state) != 0)
+                    LOG_WARN("unable to initialize resolver");
+
+#ifdef RES_TRUSTAD
+                // Set the resolver to use TRUSTAD
+                storageSftpSetOption(&my_res_state, RES_TRUSTAD);
+#endif // RES_TRUSTAD
+
+                // Query the server for SSHFP records
+                unsigned char answer[PACKET_SZ];
+
+                int len = storageSftpResNquery(&my_res_state, strZ(host), C_IN, T_SSHFP, answer, sizeof(answer));
+
+                // Check for errors.
+                // This is dependent on keeping the _DEFAULT_SOURCE for netdb.h. We can drop it and rewrite to a generic error if we
+                // think that's better.
+                if (len < 0)
+                {
+                    LOG_WARN_FMT(
+                        "res_nquery error [%d] %s '%s'", my_res_state.res_h_errno, hstrerror(my_res_state.res_h_errno), strZ(host));
+                }
+
+                // Overwrite the sshfp response with a known defined response for testing
+                Buffer *sshfp =
+                    storageGetP(storageNewReadP(storagePosixNewP(HRN_PATH_REPO_STR), STRDEF("test/data/muffat.debian.org.sshfp")));
+
+                // Verify we got the expected size
+                TEST_RESULT_INT((int)bufUsed(sshfp), 195, "expected size");
+
+                memset(answer, 0, sizeof(answer));
+                memmove(answer, bufPtr(sshfp), (size_t)bufUsed(sshfp));
+                len = (int)bufUsed(sshfp);
+
+                // Default res_trustad to unset
+                unsigned char res_trustad = 0;
+#ifdef RES_TRUSTAD
+                // Check the RES_TRUSTAD flag
+                res_trustad = ((HEADER *)answer)->ad;
+#endif // RES_TRUSTAD
+
+                if (res_trustad != 1)
+                    LOG_WARN("Host is untrusted, RES_TRUSTAD not set in response");
+
+#ifndef RES_TRUSTAD
+                LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via SSHFP", strZ(host));
+#endif // RES_TRUSTAD
+
+                // Initialize parsing the response
+                int rc;
+                ns_msg handle;
+                if ((rc = storageSftpNsInitparse(answer, len, &handle)) != 0)
+                    LOG_WARN_FMT("ns_initparse error [%d] %s for host '%s'", rc, hstrerror(rc), strZ(host));
+
+                // Attempt to verify the host via DNS provided fingerprint -- all keys match
+                TEST_RESULT_BOOL(storageSftpVerifyFingerprint(this->session, handle), true, "all keys match in SSHFP record");
+
+                // Close the resolver
+                res_nclose(&my_res_state);
+            }
+        }
+        OBJ_NEW_END();
+
+        objFree(this);
+
+        TEST_RESULT_LOG(
+#ifndef RES_TRUSTAD
+            "P00   WARN: Host is untrusted, RES_TRUSTAD not set in response\n"
+            "P00   WARN: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via SSHFP\n"
+#endif // RES_TRUSTAD
+            "P00 DETAIL: sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
+            " 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
+            "P00 DETAIL: sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
+            " 'cf40a796b1e8775e60a77d410db745012e13410935489c411dbfcadf9d62de19'\n"
+            "P00 DETAIL: sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
+            " 'ded38fadb5713bc6c772e788b5cc41223ca4072c061e5ef152b63ebb1b024096'\n"
+#else
+            "P00 DETAIL: sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
+            " 'cf40a796b1e8775e60a77d410db745012e134109'\n"
+            "P00 DETAIL: sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
+            " 'ded38fadb5713bc6c772e788b5cc41223ca4072c'\n"
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
+#ifdef RES_TRUSTAD
+            "P00 DETAIL: sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
+            " '87ac6bede384d2dc6254f396b83ed34856512e64'");
+#else
+            "P00 DETAIL: sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
+            " '87ac6bede384d2dc6254f396b83ed34856512e64'");
+#endif // RES_TRUSTAD
+
+        harnessLogLevelReset();
+#else
+        TEST_LOG(PROJECT_NAME " not built with sftp support");
+#endif // HAVE_LIBSSH2
+    }
+
+    // *****************************************************************************************************************************
+    if (testBegin("storageSftpVerifyFingerprint()"))
+    {
+#ifdef HAVE_LIBSSH2
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("storageSftpVerifyFingerprint() keyNoMatch - all failures");
+
+        harnessLogLevelSet(logLevelDetail);
+
+        TimeMSec timeout = 500;
+        const StorageSftpNewParam param = {.sshfp = true};
+
+        // Configure a valid host so that we can successfully initialize the resolver
+        const String *host = STRDEF("www.postgresql.org");
+        unsigned int port = 22;
+
+        // Create binary representation of the host keys that will generate all failures - reverse the order of the fingerprints
+        unsigned char fingerprint4[1024];
+        decodeToBin(encodingHex, "BDC1F467AB69238FC4173C20658097835379DBE5", fingerprint4);
+        unsigned char fingerprint3[1024];
+        decodeToBin(encodingHex, "CF40A796B1E8775E60A77D410DB745012E13410935489C411DBFCADF9D62DE19", fingerprint3);
+        unsigned char fingerprint2[1024];
+        decodeToBin(encodingHex, "DED38FADB5713BC6C772E788B5CC41223CA4072C061E5EF152B63EBB1B024096", fingerprint2);
+        unsigned char fingerprint1[1024];
+        decodeToBin(encodingHex, "87ac6bede384d2dc6254f396b83ed34856512e64", fingerprint1);
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = 0},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = 0},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = (char *)fingerprint1},
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[3]", .resultZ = (char *)fingerprint2},
+#else
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = (char *)fingerprint2},
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[3]", .resultZ = (char *)fingerprint3},
+#else
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = (char *)fingerprint3},
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = (char *)fingerprint4},
+            {.function = NULL},
+        });
+
+        OBJ_NEW_BEGIN(StorageSftp, .childQty = MEM_CONTEXT_QTY_MAX, .callbackQty = 1)
+        {
+            *this = (StorageSftp)
+            {
+                .interface = storageInterfaceSftp,
+                .timeout = timeout,
+            };
+
+            // Init SFTP session
+            if (libssh2_init(0) != 0)
+                THROW_FMT(ServiceError, "unable to init libssh2");
+
+            this->ioSession = ioClientOpen(sckClientNew(host, port, timeout, timeout));
+            this->session = libssh2_session_init();
+
+            if (this->session == NULL)
+                THROW_FMT(ServiceError, "unable to init libssh2 session");
+
+            // Set session to non-blocking
+            libssh2_session_set_blocking(this->session, 0);
+
+            // Perform handshake
+            int rc;
+
+            do
+            {
+                rc = libssh2_session_handshake(this->session, ioSessionFd(this->ioSession));
+            }
+            while (storageSftpWaitFd(this, rc));
+
+            if (rc == LIBSSH2_ERROR_EAGAIN)
+                THROW_FMT(ServiceError, "timeout during libssh2 handshake [%d]", rc);
+
+            if (rc != 0)
+                THROW_FMT(ServiceError, "libssh2 handshake failed [%d]", rc);
+
+            if (param.sshfp)
+            {
+                if (storageSftpResNinit(&my_res_state) != 0)
+                    LOG_WARN("unable to initialize resolver");
+
+#ifdef RES_TRUSTAD
+                // Set the resolver to use TRUSTAD
+                storageSftpSetOption(&my_res_state, RES_TRUSTAD);
+#endif // RES_TRUSTAD
+
+                // Query the server for SSHFP records
+                unsigned char answer[PACKET_SZ];
+
+                int len = storageSftpResNquery(&my_res_state, strZ(host), C_IN, T_SSHFP, answer, sizeof(answer));
+
+                // Check for errors.
+                // This is dependent on keeping the _DEFAULT_SOURCE for netdb.h. We can drop it and rewrite to a generic error if we
+                // think that's better.
+                if (len < 0)
+                {
+                    LOG_WARN_FMT(
+                        "res_nquery error [%d] %s '%s'", my_res_state.res_h_errno, hstrerror(my_res_state.res_h_errno), strZ(host));
+                }
+
+                // Overwrite the sshfp response with a known defined response for testing
+                Buffer *sshfp =
+                    storageGetP(storageNewReadP(storagePosixNewP(HRN_PATH_REPO_STR), STRDEF("test/data/muffat.debian.org.sshfp")));
+
+                // Verify we got the expected size
+                TEST_RESULT_INT((int)bufUsed(sshfp), 195, "expected size");
+
+                memset(answer, 0, sizeof(answer));
+                memmove(answer, bufPtr(sshfp), (size_t)bufUsed(sshfp));
+                len = (int)bufUsed(sshfp);
+
+                // Default res_trustad to unset
+                unsigned char res_trustad = 0;
+#ifdef RES_TRUSTAD
+                // Check the RES_TRUSTAD flag
+                res_trustad = ((HEADER *)answer)->ad;
+#endif // RES_TRUSTAD
+
+                if (res_trustad != 1)
+                    LOG_WARN("Host is untrusted, RES_TRUSTAD not set in response");
+
+#ifndef RES_TRUSTAD
+                LOG_WARN_FMT("RES_TRUSTAD not supported on this OS, host '%s' cannot be verified via sshfp", strZ(host));
+#endif // RES_TRUSTAD
+
+                // Initialize parsing the response
+                int rc;
+                ns_msg handle;
+                if ((rc = storageSftpNsInitparse(answer, len, &handle)) != 0)
+                    LOG_WARN_FMT("ns_initparse error [%d] %s for host '%s'", rc, hstrerror(rc), strZ(host));
+
+                // Attempt to verify the host via DNS provided fingerprint -- no keys match
+                TEST_RESULT_BOOL(storageSftpVerifyFingerprint(this->session, handle), false, "no SSHFP record matches for hostkey");
+
+                // Close the resolver
+                res_nclose(&my_res_state);
+            }
+        }
+        OBJ_NEW_END();
+
+        objFree(this);
+
+        TEST_RESULT_LOG(
+#ifndef RES_TRUSTAD
+            "P00   WARN: Host is untrusted, RES_TRUSTAD not set in response\n"
+            "P00   WARN: RES_TRUSTAD not supported on this OS, host 'www.postgresql.org' cannot be verified via sshfp\n"
+#endif // RES_TRUSTAD
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
+            " 'bdc1f467ab69238fc4173c20658097835379dbe5'\n"
+#ifdef LIBSSH2_HOSTKEY_HASH_SHA256
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
+            " 'cf40a796b1e8775e60a77d410db745012e13410935489c411dbfcadf9d62de19'\n"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [3]"
+            " 'ded38fadb5713bc6c772e788b5cc41223ca4072c061e5ef152b63ebb1b024096'\n"
+#else
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
+            " 'cf40a796b1e8775e60a77d410db745012e134109'\n"
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [2] hashType [2]"
+            " 'ded38fadb5713bc6c772e788b5cc41223ca4072c'\n"
+#endif // LIBSSH2_HOSTKEY_HASH_SHA256
+#ifdef RES_TRUSTAD
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
+            " '87ac6bede384d2dc6254f396b83ed34856512e64'");
+#else
+            "P00 DETAIL: no sshfp fingerprint match found for sshfp digest_type [1] hashType [2]"
+            " '87ac6bede384d2dc6254f396b83ed34856512e64'");
+#endif // RES_TRUSTAD
+
+        harnessLogLevelReset();
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2

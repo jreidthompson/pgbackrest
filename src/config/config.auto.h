@@ -136,7 +136,7 @@ Option constants
 #define CFGOPT_TYPE                                                 "type"
 #define CFGOPT_VERBOSE                                              "verbose"
 
-#define CFG_OPTION_TOTAL                                            179
+#define CFG_OPTION_TOTAL                                            180
 
 /***********************************************************************************************************************************
 Option value constants
@@ -528,6 +528,7 @@ typedef enum
     cfgOptRepoSftpPrivateKeyFile,
     cfgOptRepoSftpPrivateKeyPassphrase,
     cfgOptRepoSftpPublicKeyFile,
+    cfgOptRepoSftpVerifyViaSshfp,
     cfgOptRepoStorageCaFile,
     cfgOptRepoStorageCaPath,
     cfgOptRepoStorageHost,
