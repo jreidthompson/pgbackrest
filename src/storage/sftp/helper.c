@@ -27,19 +27,21 @@ storageSftpHelper(const unsigned int repoIdx, const bool write, StoragePathExpre
     MEM_CONTEXT_TEMP_BEGIN()
     {
         const StringList *const knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx));
+        const StringList *const privKeys = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpPrivateKeyFile, repoIdx));
 
         MEM_CONTEXT_PRIOR_BEGIN()
         {
             result = storageSftpNewP(
                 cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
                 cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
-                cfgOptionUInt64(cfgOptIoTimeout), cfgOptionIdxStr(cfgOptRepoSftpPrivateKeyFile, repoIdx),
-                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .write = write,
-                .pathExpressionFunction = pathExpressionCallback, .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                cfgOptionUInt64(cfgOptIoTimeout), privKeys, cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx),
+                .write = write, .pathExpressionFunction = pathExpressionCallback, .modeFile = STORAGE_MODE_FILE_DEFAULT,
                 .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
                 .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
-                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx), .knownHosts = knownHosts);
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .identityAgent = cfgOptionIdxStrNull(cfgOptRepoSftpIdentityAgent, repoIdx),
+                .useSshAgent = cfgOptionIdxBool(cfgOptRepoSftpUseSshAgent, repoIdx), .knownHosts = knownHosts);
         }
         MEM_CONTEXT_PRIOR_END();
     }

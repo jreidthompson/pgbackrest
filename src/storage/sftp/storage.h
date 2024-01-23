@@ -35,14 +35,16 @@ typedef struct StorageSftpNewParam
     const String *keyPassphrase;
     StringId hostKeyCheckType;
     const String *hostFingerprint;
+    const String *identityAgent;
     const StringList *knownHosts;
+    const bool useSshAgent;
 } StorageSftpNewParam;
 
-#define storageSftpNewP(path, host, port, user, timeout, keyPriv, hostKeyHashType, ...)                                            \
-    storageSftpNew(path, host, port, user, timeout, keyPriv, hostKeyHashType, (StorageSftpNewParam){VAR_PARAM_INIT, __VA_ARGS__})
+#define storageSftpNewP(path, host, port, user, timeout, privKeys, hostKeyHashType, ...)                                           \
+    storageSftpNew(path, host, port, user, timeout, privKeys, hostKeyHashType, (StorageSftpNewParam){VAR_PARAM_INIT, __VA_ARGS__})
 
 FN_EXTERN Storage *storageSftpNew(
-    const String *path, const String *host, unsigned int port, const String *user, TimeMSec timeout, const String *keyPriv,
+    const String *path, const String *host, unsigned int port, const String *user, TimeMSec timeout, const StringList *privKeys,
     StringId hostKeyHashType, const StorageSftpNewParam param);
 
 #endif // HAVE_LIBSSH2

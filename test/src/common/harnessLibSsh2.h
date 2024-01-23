@@ -34,6 +34,15 @@ libssh2 authorization constants
 /***********************************************************************************************************************************
 Function constants
 ***********************************************************************************************************************************/
+#define HRNLIBSSH2_AGENT_INIT                                       "libssh2_agent_init"
+#define HRNLIBSSH2_AGENT_CONNECT                                    "libssh2_agent_connect"
+#define HRNLIBSSH2_AGENT_DISCONNECT                                 "libssh2_agent_disconnect"
+#define HRNLIBSSH2_AGENT_FREE                                       "libssh2_agent_free"
+#define HRNLIBSSH2_AGENT_GET_IDENTITY                               "libssh2_agent_get_identity"
+#define HRNLIBSSH2_AGENT_GET_IDENTITY_PATH                          "libssh2_agent_get_identity_path"
+#define HRNLIBSSH2_AGENT_LIST_IDENTITIES                            "libssh2_agent_list_identities"
+#define HRNLIBSSH2_AGENT_SET_IDENTITY_PATH                          "libssh2_agent_set_identity_path"
+#define HRNLIBSSH2_AGENT_USERAUTH                                   "libssh2_agent_userauth"
 #define HRNLIBSSH2_HOSTKEY_HASH                                     "libssh2_hostkey_hash"
 #define HRNLIBSSH2_INIT                                             "libssh2_init"
 #define HRNLIBSSH2_KNOWNHOST_ADDC                                   "libssh2_knownhost_addc"
@@ -123,6 +132,7 @@ typedef struct HrnLibSsh2
     const String *symlinkExTarget;                                  // libssh2_sftp_symlink_ex target
     const String *fileName;                                         // libssh2_readdir* libssh2_stat* filename
     const String *readBuffer;                                       // what to copy into read buffer
+    const char *identity_agent;                                     // libssh2 identity agent path
     TimeMSec sleep;                                                 // Sleep specified milliseconds before returning from function
     size_t len;                                                     // libssh2_session_hostkey len
     int type;                                                       // libssh2_session_hostkey type
