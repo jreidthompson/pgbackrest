@@ -342,6 +342,55 @@ testRun(void)
             "failure initializing ssh-agent support [-6]: Unable to allocate space for agent connection");
 
         // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("public key from file auth failure, no public key");
+
+        hrnLibSsh2ScriptSet((HrnLibSsh2 [])
+        {
+            {.function = HRNLIBSSH2_INIT, .param = "[0]", .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
+            {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
+            {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_CSTR "\",\"" KEYPRIV_CSTR "\",null]",
+             .resultInt = LIBSSH2_ERROR_ALLOC},
+            {.function = HRNLIBSSH2_AGENT_INIT, .resultNull = true},
+            {.function = HRNLIBSSH2_SESSION_LAST_ERROR, .errMsg = (char *)"Unable to allocate space for agent connection",
+             .resultInt = LIBSSH2_ERROR_ALLOC},
+            {.function = NULL}
+        });
+
+        // Load configuration
+        argList = strLstNew();
+        hrnCfgArgRawZ(argList, cfgOptStanza, "test");
+        hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
+        hrnCfgArgRawZ(argList, cfgOptRepo, "1");
+        hrnCfgArgRawZ(argList, cfgOptRepoPath, TEST_PATH);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
+        hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "localhost");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "fingerprint");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, "~/.ssh/id_rsa");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, "~/.ssh/id_rsa.pub");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostFingerprint, "3132333435363738393039383736353433323130");
+        HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
+
+        TEST_ERROR(
+            storageSftpNewP(
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpPrivateKeyFile, repoIdx)),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = STORAGE_MODE_FILE_DEFAULT,
+                .modePath = STORAGE_MODE_PATH_DEFAULT, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx)),
+                .useSshAgent = cfgOptionIdxBool(cfgOptRepoSftpUseSshAgent, repoIdx)),
+            ServiceError,
+            "failure initializing ssh-agent support [-6]: Unable to allocate space for agent connection");
+
+        // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("libssh2_agent_connect failure");
 
         hrnLibSsh2ScriptSet((HrnLibSsh2 [])
@@ -776,6 +825,13 @@ testRun(void)
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("libssh2_agent_userauth success - identityAgent populated full path");
 
+        Storage *storageSsh = storagePosixNewP(strNewFmt("%s%s", strZ(userHome()), "/.ssh"), .write = true);
+        HRN_STORAGE_PUT_EMPTY(storageSsh, KEYPRIV_DSA_CSTR);
+        HRN_STORAGE_PUT_EMPTY(storageSsh, KEYPRIV_ECDSA_CSTR);
+        HRN_STORAGE_PUT_EMPTY(storageSsh, KEYPRIV_ECDSA_SK_CSTR);
+        HRN_STORAGE_PUT_EMPTY(storageSsh, KEYPRIV_ED25519_CSTR);
+        HRN_STORAGE_PUT_EMPTY(storageSsh, KEYPRIV_CSTR);
+
         // Load configuration
         argList = strLstNew();
         hrnCfgArgRawZ(argList, cfgOptStanza, "test");
@@ -798,6 +854,21 @@ testRun(void)
             {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
             {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_DSA_CSTR "\",\"" KEYPRIV_DSA_CSTR "\",null]",
+             .resultInt = LIBSSH2_ERROR_ALLOC},
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_ECDSA_CSTR "\",\"" KEYPRIV_ECDSA_CSTR "\",null]",
+             .resultInt = LIBSSH2_ERROR_ALLOC},
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_ECDSA_SK_CSTR "\",\"" KEYPRIV_ECDSA_SK_CSTR "\",null]",
+             .resultInt = LIBSSH2_ERROR_ALLOC},
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_ED25519_CSTR "\",\"" KEYPRIV_ED25519_CSTR "\",null]",
+             .resultInt = LIBSSH2_ERROR_ALLOC},
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_CSTR "\",\"" KEYPRIV_CSTR "\",null]",
+             .resultInt = LIBSSH2_ERROR_ALLOC},
             {.function = HRNLIBSSH2_AGENT_INIT},
             {.function = HRNLIBSSH2_AGENT_SET_IDENTITY_PATH},
             {.function = HRNLIBSSH2_AGENT_CONNECT, .resultInt = LIBSSH2_ERROR_NONE},
@@ -841,6 +912,21 @@ testRun(void)
             {.function = HRNLIBSSH2_SESSION_INIT_EX, .param = "[null,null,null,null]"},
             {.function = HRNLIBSSH2_SESSION_HANDSHAKE, .param = HANDSHAKE_PARAM, .resultInt = LIBSSH2_ERROR_NONE},
             {.function = HRNLIBSSH2_HOSTKEY_HASH, .param = "[2]", .resultZ = "12345678909876543210"},
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_DSA_CSTR "\",\"" KEYPRIV_DSA_CSTR "\",null]",
+             .resultInt = LIBSSH2_ERROR_ALLOC},
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_ECDSA_CSTR "\",\"" KEYPRIV_ECDSA_CSTR "\",null]",
+             .resultInt = LIBSSH2_ERROR_ALLOC},
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_ECDSA_SK_CSTR "\",\"" KEYPRIV_ECDSA_SK_CSTR "\",null]",
+             .resultInt = LIBSSH2_ERROR_ALLOC},
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_ED25519_CSTR "\",\"" KEYPRIV_ED25519_CSTR "\",null]",
+             .resultInt = LIBSSH2_ERROR_ALLOC},
+            {.function = HRNLIBSSH2_USERAUTH_PUBLICKEY_FROMFILE_EX,
+             .param = "[\"" TEST_USER "\"," TEST_USER_LEN ",\"" KEYPUB_CSTR "\",\"" KEYPRIV_CSTR "\",null]",
+             .resultInt = LIBSSH2_ERROR_ALLOC},
             {.function = HRNLIBSSH2_AGENT_INIT},
             {.function = NULL}
         });
@@ -861,6 +947,11 @@ testRun(void)
             ServiceError,
             "libssh2 version " LIBSSH2_VERSION " does not support ssh-agent identity path, requires version 1.9 or greater");
 #endif
+        HRN_STORAGE_REMOVE(storageSsh, KEYPRIV_DSA_CSTR);
+        HRN_STORAGE_REMOVE(storageSsh, KEYPRIV_ECDSA_CSTR);
+        HRN_STORAGE_REMOVE(storageSsh, KEYPRIV_ECDSA_SK_CSTR);
+        HRN_STORAGE_REMOVE(storageSsh, KEYPRIV_ED25519_CSTR);
+        HRN_STORAGE_REMOVE(storageSsh, KEYPRIV_CSTR);
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("known host init failure");
@@ -1152,6 +1243,7 @@ testRun(void)
             {.function = NULL}
         });
 
+        // Load configuration
         argList = strLstNew();
         hrnCfgArgRawZ(argList, cfgOptStanza, "test");
         hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");

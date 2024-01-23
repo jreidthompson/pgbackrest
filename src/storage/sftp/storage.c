@@ -607,7 +607,8 @@ storageSftpKnownHostsFilesList(const StringList *const knownHosts)
 }
 
 /***********************************************************************************************************************************
-Build private key file list. privKeys requires full path and/or leading tilde path entries.
+Build identity file list. If privKeys is empty build the default file list, otherwise build the list provided. privKeys
+requires full path and/or leading tilde path entries.
 ***********************************************************************************************************************************/
 static StringList *
 storageSftpIdentityFilesList(const StringList *const privKeys)
@@ -620,17 +621,41 @@ storageSftpIdentityFilesList(const StringList *const privKeys)
 
     MEM_CONTEXT_TEMP_BEGIN()
     {
-        // Process the privKey file list entries and add them to the result list
-        for (unsigned int listIdx = 0; listIdx < strLstSize(privKeys); listIdx++)
+        if (strLstEmpty(privKeys))
         {
-            // Get the trimmed file path and add it to the result list
-            const String *const filePath = strTrim(strLstGet(privKeys, listIdx));
+            // Create default file list, do not include non-existent files, reduces log noise
+            const Storage *const sshStorage = storagePosixNewP(strNewFmt("%s%s", strZ(userHome()), "/.ssh"));
 
-            // Expand leading tilde and add to the result list
-            if (strBeginsWithZ(filePath, "~/"))
-                strLstAddFmt(result, "%s", strZ(storageSftpExpandTildePath(filePath)));
-            else
-                strLstAdd(result, filePath);
+            StringList *const sshDefaultIdentityFiles = strLstNew();
+            strLstAddFmt(sshDefaultIdentityFiles, "%s%s", strZ(userHome()), "/.ssh/id_dsa");
+            strLstAddFmt(sshDefaultIdentityFiles, "%s%s", strZ(userHome()), "/.ssh/id_ecdsa");
+            strLstAddFmt(sshDefaultIdentityFiles, "%s%s", strZ(userHome()), "/.ssh/id_ecdsa_sk");
+            strLstAddFmt(sshDefaultIdentityFiles, "%s%s", strZ(userHome()), "/.ssh/id_ed25519");
+            strLstAddFmt(sshDefaultIdentityFiles, "%s%s", strZ(userHome()), "/.ssh/id_ed25519_sk");
+            strLstAddFmt(sshDefaultIdentityFiles, "%s%s", strZ(userHome()), "/.ssh/id_rsa");
+
+            for (unsigned int listIdx = 0; listIdx < strLstSize(sshDefaultIdentityFiles); listIdx++)
+            {
+                const String *const filePath = strLstGet(sshDefaultIdentityFiles, listIdx);
+
+                if (storageExistsP(sshStorage, filePath))
+                    strLstAdd(result, filePath);
+            }
+        }
+        else
+        {
+            // Process the privKey file list entries and add them to the result list
+            for (unsigned int listIdx = 0; listIdx < strLstSize(privKeys); listIdx++)
+            {
+                // Get the trimmed file path and add it to the result list
+                const String *const filePath = strTrim(strLstGet(privKeys, listIdx));
+
+                // Expand leading tilde and add to the result list
+                if (strBeginsWithZ(filePath, "~/"))
+                    strLstAddFmt(result, "%s", strZ(storageSftpExpandTildePath(filePath)));
+                else
+                    strLstAdd(result, filePath);
+            }
         }
     }
     MEM_CONTEXT_TEMP_END();
@@ -1359,56 +1384,52 @@ storageSftpNew(
             libssh2_knownhost_free(knownHostsList);
         }
 
-        // Attempt to authenticate with any provided private keys
-        // Build/normalize private keys list
-        StringList *const privateKeys = storageSftpIdentityFilesList(privKeys);
-
         // If provided a public key normalize it if necessary
         String *const pubKeyPath =
             param.keyPub != NULL &&
             regExpMatchOne(STRDEF("^ *~"), param.keyPub) ? storageSftpExpandTildePath(param.keyPub) : strDup(param.keyPub);
 
+        // Build/normalize private keys list
+        StringList *const privateKeys = storageSftpIdentityFilesList(privKeys);
+
+        // Attempt to authenticate with private keys
         bool authSuccess = false;
 
-        if (!strLstEmpty(privateKeys))
+        for (unsigned int listIdx = 0; listIdx < strLstSize(privateKeys); listIdx++)
         {
-            // Attempt to authenticate with each private key
-            for (unsigned int listIdx = 0; listIdx < strLstSize(privateKeys); listIdx++)
+            const String *const privateKey = strLstGet(privateKeys, listIdx);
+
+            // If a public key has been provided use only that public key, otherwise use the private key with a .pub extension
+            do
             {
-                const String *const privateKey = strLstGet(privateKeys, listIdx);
+                rc = libssh2_userauth_publickey_fromfile(
+                    this->session, strZ(user),
+                    pubKeyPath != NULL ? strZ(pubKeyPath) : strZ(strCatFmt(strNew(),"%s.pub", strZ(privateKey))),
+                    strZ(privateKey), strZNull(param.keyPassphrase));
+            }
+            while (storageSftpWaitFd(this, rc));
 
-                // If a public key has been provided use only that public key, otherwise use the private key with a .pub extension
-                do
-                {
-                    rc = libssh2_userauth_publickey_fromfile(
-                        this->session, strZ(user),
-                        pubKeyPath != NULL ? strZ(pubKeyPath) : strZ(strCatFmt(strNew(), "%s.pub", strZ(privateKey))),
-                        strZ(privateKey), strZNull(param.keyPassphrase));
-                }
-                while (storageSftpWaitFd(this, rc));
-
-                // Log the result of the authentication attempt
-                if (rc != 0)
-                {
-                    if (rc == LIBSSH2_ERROR_EAGAIN)
-                        LOG_DETAIL_FMT("timeout during public key authentication");
-                    else
-                    {
-                        LOG_DETAIL_FMT(
-                            "public key authentication with username %s and key %s failed [%d]", strZ(user), strZ(privateKey), rc);
-                    }
-                }
+            // Log the result of the authentication attempt
+            if (rc != 0)
+            {
+                if (rc == LIBSSH2_ERROR_EAGAIN)
+                    LOG_DETAIL_FMT("timeout during public key authentication");
                 else
                 {
-                    authSuccess = true;
-
-                    LOG_DETAIL_FMT("public key authentication with username %s and key %s succeeded", strZ(user), strZ(privateKey));
-                    break;
+                    LOG_DETAIL_FMT(
+                        "public key authentication with username %s and key %s failed [%d]", strZ(user), strZ(privateKey), rc);
                 }
+            }
+            else
+            {
+                authSuccess = true;
+
+                LOG_DETAIL_FMT("public key authentication with username %s and key %s succeeded", strZ(user), strZ(privateKey));
+                break;
             }
         }
 
-        // Free private key list and public key path
+        // Free the private key list, and the public key path
         strLstFree(privateKeys);
         strFree(pubKeyPath);
 
