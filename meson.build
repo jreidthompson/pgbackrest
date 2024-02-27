@@ -167,11 +167,27 @@ lib_z = dependency('zlib')
 
 configuration.set('ZLIB_CONST', true, description: 'Require zlib const input buffer')
 
-# Find optional libssh2 library
-lib_ssh2 = dependency('libssh2', required: get_option('libssh2'))
+# Was with-libssh requested (build with libssh rather than libssh2)?
+# Set default of not found
+lib_ssh = dependency('', required: false)
+with_libssh = get_option('with-libssh')
+if with_libssh
+    # Check for optional libssh library
+    lib_ssh = dependency('libssh', required: false)
+endif
 
-if lib_ssh2.found()
-    configuration.set('HAVE_LIBSSH2', true, description: 'Is libssh2 present?')
+# If with-libssh requested and found, skip looking for libssh2. If requested but
+# not found we fail over to trying to build with libssh2
+# Set default of not found
+lib_ssh2 = dependency('', required: false)
+if not lib_ssh.found()
+    # Find optional libssh2 library
+    lib_ssh2 = dependency('libssh2', required: false)
+
+    if lib_ssh2.found()
+        configuration.set('HAVE_LIBSSH2', true,
+            description: 'Is libssh2 present?')
+    endif
 endif
 
 # Find optional zstd library

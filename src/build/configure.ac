@@ -113,16 +113,75 @@ AC_CHECK_LIB(
     [AC_CHECK_HEADER(lz4frame.h, [AC_DEFINE(HAVE_LIBLZ4) AC_SUBST(LIBS, "${LIBS} -llz4")],
         [AC_MSG_ERROR([header file <lz4frame.h> is required])])])
 
-# Check optional libSSH2 library
+# Check if compile with libssh was requested and for library and headers if so
 # ----------------------------------------------------------------------------------------------------------------------------------
-AC_CHECK_LIB(
-    [ssh2], [libssh2_init],
-    [AC_CHECK_HEADER(libssh2.h, [AC_DEFINE(HAVE_LIBSSH2) AC_SUBST(LIBS, "${LIBS} -lssh2")],
-        [AC_MSG_ERROR([header file <libssh2.h> is required])])])
-AC_CHECK_LIB(
-    [ssh2], [libssh2_sftp_init],
-    [AC_CHECK_HEADER(libssh2_sftp.h, [],
-        [AC_MSG_ERROR([header file <libssh2_sftp.h> is required])])])
+AC_ARG_WITH([libssh],
+    [AS_HELP_STRING([--with-libssh],
+        [Compile with libssh rather than libssh2. If libssh is not found, fail over and attempt with libssh2.])],
+    [],
+    [with_libssh=no])
+
+AS_IF([test "x$with_libssh" != xno],
+    [AC_CHECK_LIB([ssh], [ssh_init],
+        [AC_SUBST([LIBS], ["${LIBS} -lssh"]) AC_DEFINE([HAVE_LIBSSH], [1], [Define if you have libssh])],
+        [AC_MSG_WARN([--with-libssh was given, but test for libssh failed, fail over and attempt with libssh2])],
+        [])
+    ])
+
+if test "x$ac_cv_lib_ssh_ssh_init" = xyes
+then
+    AC_CHECK_HEADER(libssh/libssh.h, [], [AC_MSG_ERROR([header file <libssh/libssh.h> is required])])
+    AC_CHECK_HEADER(libssh/sftp.h, [], [AC_MSG_ERROR([header file <libssh/sftp.h> is required])])
+    AC_MSG_NOTICE(using libssh for SFTP support[])
+fi
+
+# Check optional libssh2 library if libssh was not explicitly requested or requested but not found
+# ----------------------------------------------------------------------------------------------------------------------------------
+if test "x$ac_cv_lib_ssh_ssh_init" != xyes
+then
+    # Check for optional libssh2 library and headers and use if found
+    # ------------------------------------------------------------------------------------------------------------------------------
+    AC_ARG_WITH([libssh2],
+        [AS_HELP_STRING([--with-libssh2], [support SFTP via libssh2 @<:@default=check@:>@])],
+        [],
+        [with_ssh2=check])
+
+    AS_IF([test "x$with_ssh2" != xno],
+        [AC_CHECK_LIB([ssh2], [libssh2_init],
+            [AC_SUBST([LIBS], ["${LIBS} -lssh2"])
+             AC_DEFINE([HAVE_LIBSSH2], [1],
+                   [Define if you have libssh2])
+            ],
+            [if test "x$with_ssh2" != xcheck; then
+                AC_MSG_FAILURE([test for libssh2 failed, is libssh2 installed])
+             else
+                 AC_MSG_WARN([test for libssh2 failed, no SFTP support will be provided])
+             fi
+            ],)
+        ])
+
+    # Check for required header files
+    if test "x$ac_cv_lib_ssh2_libssh2_init" == xyes
+    then
+        AC_CHECK_HEADER(libssh2.h, [], [AC_MSG_ERROR([header file <libssh2.h> is required])])
+        AC_CHECK_HEADER(libssh2_sftp.h, [], [AC_MSG_ERROR([header file <libssh2_sftp.h> is required])])
+        AC_MSG_NOTICE(using libssh2 for SFTP support[])
+    fi
+fi
+
+# Advise of no SFTP support, suggest installing libssh2 or configuring with libssh
+# ----------------------------------------------------------------------------------------------------------------------------------
+
+if test "x$ac_cv_lib_ssh2_libssh2_init" != xyes && test "x$with_libssh" != xyes
+then
+    AC_MSG_WARN([for SFTP support install libssh2 or try --with-libssh as an alternative SFTP support provider])
+else
+      if test "x$ac_cv_lib_ssh2_libssh2_init" != xyes && test "x$ac_cv_lib_ssh_ssh_init" != xyes
+      then
+          AC_MSG_WARN([for SFTP support install libssh2 or libssh])
+      fi
+fi
+
 
 # Check optional zst library. Ignore any versions below 1.0.
 # ----------------------------------------------------------------------------------------------------------------------------------

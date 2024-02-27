@@ -3,3 +3,4 @@ option('fatal-errors', type: 'boolean', value: false, description: 'Stop compila
 option('liblz4', type: 'feature', value: 'auto', description: 'Enable LZ4 compression support')
 option('libssh2', type: 'feature', value: 'auto', description: 'Enable SFTP storage support')
 option('libzstd', type: 'feature', value: 'auto', description: 'Enable Zstandard compression support')
+option('with-libssh', type: 'boolean', value: false, description: 'Compile with libssh rather than libssh2. If libssh is not found, fail over and attempt with libssh2.')
