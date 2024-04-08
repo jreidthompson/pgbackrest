@@ -3,7 +3,7 @@ SFTP Storage Helper
 ***********************************************************************************************************************************/
 #include "build.auto.h"
 
-#ifdef HAVE_LIBSSH2
+#if defined(HAVE_LIBSSH2) || defined(HAVE_LIBSSH)
 
 #include "common/debug.h"
 #include "common/log.h"
@@ -48,4 +48,4 @@ storageSftpHelper(const unsigned int repoIdx, const bool write, StoragePathExpre
     FUNCTION_LOG_RETURN(STORAGE, result);
 }
 
-#endif // HAVE_LIBSSH2
+#endif // HAVE_LIBSSH2 || HAVE_LIBSSH

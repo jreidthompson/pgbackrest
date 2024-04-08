@@ -4,7 +4,7 @@ SFTP Storage Helper
 #ifndef STORAGE_SFTP_STORAGE_HELPER_H
 #define STORAGE_SFTP_STORAGE_HELPER_H
 
-#ifdef HAVE_LIBSSH2
+#if defined(HAVE_LIBSSH2) || defined(HAVE_LIBSSH)
 
 #include "storage/sftp/storage.h"
 
@@ -18,6 +18,6 @@ Storage helper for StorageHelper array passed to storageHelperInit()
 ***********************************************************************************************************************************/
 #define STORAGE_SFTP_HELPER                                         {.type = STORAGE_SFTP_TYPE, .helper = storageSftpHelper}
 
-#endif // HAVE_LIBSSH2
+#endif // HAVE_LIBSSH2 || HAVE_LIBSSH
 
 #endif

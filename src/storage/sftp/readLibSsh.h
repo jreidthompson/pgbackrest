@@ -1,9 +1,9 @@
-#ifdef HAVE_LIBSSH2
+#ifdef HAVE_LIBSSH
 /***********************************************************************************************************************************
 SFTP Storage Read
 ***********************************************************************************************************************************/
-#ifndef STORAGE_SFTP_READ_H
-#define STORAGE_SFTP_READ_H
+#ifndef STORAGE_SFTP_LIBSSHREAD_H
+#define STORAGE_SFTP_LIBSSHREAD_H
 
 #include "storage/read.h"
 #include "storage/sftp/storage.intern.h"
@@ -12,8 +12,8 @@ SFTP Storage Read
 Constructors
 ***********************************************************************************************************************************/
 FN_EXTERN StorageRead *storageReadSftpNew(
-    StorageSftp *storage, const String *name, bool ignoreMissing, LIBSSH2_SESSION *session, LIBSSH2_SFTP *sftpSession,
-    LIBSSH2_SFTP_HANDLE *sftpHandle, uint64_t offset, const Variant *limit);
+    StorageSftp *storage, const String *name, bool ignoreMissing, ssh_session *session, sftp_session *sftpSession,
+    sftp_file *sftpHandle, uint64_t offset, const Variant *limit);
 
 #endif
-#endif // HAVE_LIBSSH2
+#endif // HAVE_LIBSSH

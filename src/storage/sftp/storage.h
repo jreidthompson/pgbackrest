@@ -11,7 +11,7 @@ Storage type
 ***********************************************************************************************************************************/
 #define STORAGE_SFTP_TYPE                                           STRID5("sftp", 0x850d30)
 
-#ifdef HAVE_LIBSSH2
+#if defined(HAVE_LIBSSH2) || defined(HAVE_LIBSSH)
 
 /***********************************************************************************************************************************
 SFTP StrictHostKeyChecking
@@ -45,6 +45,6 @@ FN_EXTERN Storage *storageSftpNew(
     const String *path, const String *host, unsigned int port, const String *user, TimeMSec timeout, const String *keyPriv,
     StringId hostKeyHashType, const StorageSftpNewParam param);
 
-#endif // HAVE_LIBSSH2
+#endif // HAVE_LIBSSH2 || HAVE_LIBSSH
 
 #endif

@@ -625,8 +625,11 @@ unit:
         coverage:
           - storage/sftp/helper
           - storage/sftp/read
+          - storage/sftp/readLibSsh
           - storage/sftp/storage
+          - storage/sftp/storageLibssh
           - storage/sftp/write
+          - storage/sftp/writeLibSsh
 
         include:
           - storage/helper

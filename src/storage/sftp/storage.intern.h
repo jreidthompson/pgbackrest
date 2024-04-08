@@ -4,8 +4,15 @@ SFTP Storage Internal
 #ifndef STORAGE_SFTP_STORAGE_INTERN_H
 #define STORAGE_SFTP_STORAGE_INTERN_H
 
+#ifdef HAVE_LIBSSH2
 #include <libssh2.h>
 #include <libssh2_sftp.h>
+#endif // HAVE_LIBSSH2
+
+#ifdef HAVE_LIBSSH
+#include <libssh/libssh.h>
+#include <libssh/sftp.h>
+#endif // HAVE_LIBSSH
 
 #include "storage/sftp/storage.h"
 

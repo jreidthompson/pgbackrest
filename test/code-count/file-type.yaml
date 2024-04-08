@@ -2427,11 +2427,19 @@ src/storage/sftp/read.c:
   class: core
   type: c
 
+src/storage/sftp/readLibSsh.c:
+  class: core
+  type: c
+
 src/storage/sftp/read.h:
   class: core
   type: c/h
 
 src/storage/sftp/storage.c:
+  class: core
+  type: c
+
+src/storage/sftp/storageLibSsh.c:
   class: core
   type: c
 
@@ -2444,6 +2452,10 @@ src/storage/sftp/storage.intern.h:
   type: c/h
 
 src/storage/sftp/write.c:
+  class: core
+  type: c
+
+src/storage/sftp/writeLibSsh.c:
   class: core
   type: c
 

@@ -118,7 +118,7 @@ testRun(void)
             "local repo1 and repo2 paths are both '/var/lib/pgbackrest' but must be different");
 
         // -------------------------------------------------------------------------------------------------------------------------
-#ifdef HAVE_LIBSSH2
+#if defined(HAVE_LIBSSH2) || defined(HAVE_LIBSSH)
         TEST_TITLE("local default repo paths for sftp repo type must be different");
 
         argList = strLstNew();
@@ -136,7 +136,7 @@ testRun(void)
         TEST_ERROR(
             hrnCfgLoadP(cfgCmdInfo, argList), OptionInvalidValueError,
             "local repo1 and repo2 paths are both '/var/lib/pgbackrest' but must be different");
-#endif // HAVE_LIBSSH2
+#endif // HAVE_LIBSSH2 || HAVE_LIBSSH
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("local repo paths same but types different");
@@ -644,7 +644,7 @@ testRun(void)
         hrnCfgEnvKeyRemoveRaw(cfgOptRepoAzureKey, 1);
 
         // -------------------------------------------------------------------------------------------------------------------------
-#ifdef HAVE_LIBSSH2
+#if defined(HAVE_LIBSSH2) || defined(HAVE_LIBSSH)
         TEST_TITLE("error on missing SFTP fingerprint");
 
         argList = strLstNew();
@@ -739,7 +739,7 @@ testRun(void)
         TEST_RESULT_UINT(
             cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, 0), CFGOPTVAL_REPO_SFTP_HOST_KEY_CHECK_TYPE_FINGERPRINT,
             "check type");
-#endif // HAVE_LIBSSH2
+#endif // HAVE_LIBSSH2 || HAVE_LIBSSH
     }
 
     // *****************************************************************************************************************************

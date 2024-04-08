@@ -30,7 +30,7 @@ Constants
 /***********************************************************************************************************************************
 Test function for path expression
 ***********************************************************************************************************************************/
-#ifdef HAVE_LIBSSH2
+#if defined(HAVE_LIBSSH2) || defined(HAVE_LIBSSH)
 
 static String *
 storageTestPathExpression(const String *expression, const String *path)
@@ -50,7 +50,7 @@ storageTestPathExpression(const String *expression, const String *path)
     return result;
 }
 
-#endif // HAVE_LIBSSH2
+#endif // HAVE_LIBSSH2 || HAVE_LIBSSH
 
 /***********************************************************************************************************************************
 Test Run

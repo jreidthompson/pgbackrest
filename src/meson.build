@@ -263,8 +263,11 @@ src_pgbackrest = [
 	'storage/s3/write.c',
 	'storage/sftp/helper.c',
 	'storage/sftp/read.c',
+	'storage/sftp/readLibSsh.c',
 	'storage/sftp/storage.c',
+	'storage/sftp/storageLibSsh.c',
 	'storage/sftp/write.c',
+	'storage/sftp/writeLibSsh.c',
     'main.c',
 ]
 
@@ -281,6 +284,7 @@ executable(
         lib_lz4,
         lib_pq,
         lib_ssh2,
+        lib_ssh,
         lib_xml,
         lib_z,
         lib_zstd,

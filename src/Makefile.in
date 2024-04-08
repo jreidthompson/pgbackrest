@@ -194,8 +194,11 @@ SRCS = \
 	storage/s3/write.c \
 	storage/sftp/helper.c \
 	storage/sftp/read.c \
+	storage/sftp/readLibSsh.c \
 	storage/sftp/storage.c \
-	storage/sftp/write.c
+	storage/sftp/storageLibSsh.c \
+	storage/sftp/write.c \
+	storage/sftp/writeLibSsh.c
 
 ####################################################################################################################################
 # Compiler options

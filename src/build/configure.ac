@@ -123,9 +123,13 @@ AC_ARG_WITH([libssh],
 
 AS_IF([test "x$with_libssh" != xno],
     [AC_CHECK_LIB([ssh], [ssh_init],
-        [AC_SUBST([LIBS], ["${LIBS} -lssh"]) AC_DEFINE([HAVE_LIBSSH], [1], [Define if you have libssh])],
-        [AC_MSG_WARN([--with-libssh was given, but test for libssh failed, fail over and attempt with libssh2])],
-        [])
+        [AC_SUBST([LIBS], ["${LIBS} -lssh"])
+         AC_DEFINE([HAVE_LIBSSH], [1],
+                   [Define if you have libssh])
+        ],
+        [AC_MSG_FAILURE(
+           [--with-libssh was given, but test for libssh failed])],
+      [])
     ])
 
 if test "x$ac_cv_lib_ssh_ssh_init" = xyes

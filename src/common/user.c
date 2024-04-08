@@ -24,9 +24,9 @@ static struct
 
     gid_t groupId;                                                  // Real group id of the calling process from getgid()
     const String *groupName;                                        // Group name if it exists
-#ifdef HAVE_LIBSSH2
+#if defined(HAVE_LIBSSH2) || defined(HAVE_LIBSSH)
     const String *userHome;                                         // User home directory
-#endif // HAVE_LIBSSH2
+#endif // HAVE_LIBSSH2 || HAVE_LIBSSH
 } userLocalData;
 
 /**********************************************************************************************************************************/
@@ -43,9 +43,9 @@ userInitInternal(void)
 
             userLocalData.userId = getuid();
             userLocalData.userName = userNameFromId(userLocalData.userId);
-#ifdef HAVE_LIBSSH2
+#if defined(HAVE_LIBSSH2) || defined(HAVE_LIBSSH)
             userLocalData.userHome = userHomeFromId(userLocalData.userId);
-#endif // HAVE_LIBSSH2
+#endif // HAVE_LIBSSH2 || HAVE_LIBSSH
             userLocalData.userRoot = userLocalData.userId == 0;
 
             userLocalData.groupId = getgid();
@@ -122,7 +122,7 @@ groupNameFromId(const gid_t groupId)
 
 /**********************************************************************************************************************************/
 // Currently userHome() and userHomeFromId() are only used if we are building with libssh2
-#ifdef HAVE_LIBSSH2
+#if defined(HAVE_LIBSSH2) || defined(HAVE_LIBSSH)
 
 FN_EXTERN const String *
 userHome(void)
@@ -147,7 +147,7 @@ userHomeFromId(const uid_t userId)
     FUNCTION_TEST_RETURN(STRING, NULL);
 }
 
-#endif // HAVE_LIBSSH2
+#endif // HAVE_LIBSSH2 || HAVE_LIBSSH
 
 /**********************************************************************************************************************************/
 FN_EXTERN uid_t

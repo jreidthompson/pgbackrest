@@ -572,6 +572,7 @@ testBldUnit(TestBuild *const this)
             "        lib_lz4,\n"
             "        lib_pq,\n"
             "        lib_ssh2,\n"
+            "        lib_ssh,\n"
             "        lib_xml,\n"
             "        lib_yaml,\n"
             "        lib_z,\n"
