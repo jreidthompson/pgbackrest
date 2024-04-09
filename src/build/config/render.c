@@ -5,6 +5,7 @@ Render Configuration Data
 
 #include "common/log.h"
 #include "common/type/convert.h"
+#include "common/type/stringList.h"
 #include "config/common.h"
 #include "storage/posix/storage.h"
 
@@ -486,12 +487,40 @@ bldCfgRenderAllowList(const List *const allowList, const String *const optType)
 
         if (allow->condition != NULL)
         {
-            strCatFmt(
-                result,
-                "#ifndef %s\n"
-                "                        PARSE_RULE_BOOL_FALSE,\n"
-                "#endif\n",
-                strZ(allow->condition));
+            // If there are multiple conditions, render them as AND'd #if !defined entries
+            if ((strChr(allow->condition, '|')) != -1)
+            {
+                StringList *const conditionList = strLstNewSplitZ(allow->condition, "|");
+
+                // Open the #if block
+                strCatFmt(result, "#if ");
+
+                // Render each condition
+                for (unsigned int conditionIdx = 0; conditionIdx < strLstSize(conditionList); conditionIdx++)
+                {
+                    strCatFmt(
+                        result,
+                        "!defined %s %s ",
+                        strZ(strTrim(strLstGet(conditionList, conditionIdx))),
+                        conditionIdx == strLstSize(conditionList) - 1 ? "" : "&&");
+                }
+
+                // Close the #if block
+                strCatFmt(
+                    result,
+                    "\n                        PARSE_RULE_BOOL_FALSE,\n"
+                    "#endif\n");
+            }
+            // Otherwise render the single condition as an #ifndef block
+            else
+            {
+                strCatFmt(
+                    result,
+                    "#ifndef %s\n"
+                    "                        PARSE_RULE_BOOL_FALSE,\n"
+                    "#endif\n",
+                    strZ(allow->condition));
+            }
         }
     }
 
