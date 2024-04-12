@@ -4168,10 +4168,8 @@ printf "%s\n" "#define HAVE_LIBSSH 1" >>confdefs.h
 
 
 else $as_nop
-  { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-printf "%s\n" "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "--with-libssh was given, but test for libssh failed
-See \`config.log' for more details" "$LINENO" 5; }
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: --with-libssh was given, but test for libssh failed. Attempting to compile with libssh2 instead." >&5
+printf "%s\n" "$as_me: WARNING: --with-libssh was given, but test for libssh failed. Attempting to compile with libssh2 instead." >&2;}
 fi
 
 
@@ -4305,13 +4303,13 @@ fi
 
 if test "x$ac_cv_lib_ssh2_libssh2_init" != xyes && test "x$with_libssh" != xyes
 then
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: for SFTP support install libssh2 or try --with-libssh as an alternative SFTP support provider" >&5
-printf "%s\n" "$as_me: WARNING: for SFTP support install libssh2 or try --with-libssh as an alternative SFTP support provider" >&2;}
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: for SFTP support install libssh2 or try --with-libssh as an alternative SFTP support provider" >&5
+printf "%s\n" "$as_me: for SFTP support install libssh2 or try --with-libssh as an alternative SFTP support provider" >&6;}
 else
       if test "x$ac_cv_lib_ssh2_libssh2_init" != xyes && test "x$ac_cv_lib_ssh_ssh_init" != xyes
       then
-          { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: for SFTP support install libssh2 or libssh" >&5
-printf "%s\n" "$as_me: WARNING: for SFTP support install libssh2 or libssh" >&2;}
+          { printf "%s\n" "$as_me:${as_lineno-$LINENO}: for SFTP support install libssh2 or libssh" >&5
+printf "%s\n" "$as_me: for SFTP support install libssh2 or libssh" >&6;}
       fi
 fi
 
@@ -5881,4 +5879,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
-# Generated from src/build/configure.ac sha1 d5b885296edfdeefca7c42cd5c61ccfa120d185b
+

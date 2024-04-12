@@ -127,8 +127,8 @@ AS_IF([test "x$with_libssh" != xno],
          AC_DEFINE([HAVE_LIBSSH], [1],
                    [Define if you have libssh])
         ],
-        [AC_MSG_FAILURE(
-           [--with-libssh was given, but test for libssh failed])],
+        [AC_MSG_WARN(
+           [--with-libssh was given, but test for libssh failed. Attempting to compile with libssh2 instead.])],
       [])
     ])
 
@@ -178,11 +178,11 @@ fi
 
 if test "x$ac_cv_lib_ssh2_libssh2_init" != xyes && test "x$with_libssh" != xyes
 then
-    AC_MSG_WARN([for SFTP support install libssh2 or try --with-libssh as an alternative SFTP support provider])
+    AC_MSG_NOTICE([for SFTP support install libssh2 or try --with-libssh as an alternative SFTP support provider])
 else
       if test "x$ac_cv_lib_ssh2_libssh2_init" != xyes && test "x$ac_cv_lib_ssh_ssh_init" != xyes
       then
-          AC_MSG_WARN([for SFTP support install libssh2 or libssh])
+          AC_MSG_NOTICE([for SFTP support install libssh2 or libssh])
       fi
 fi
 
