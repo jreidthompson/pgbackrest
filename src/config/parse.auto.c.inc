@@ -9491,11 +9491,7 @@ static const ParseRuleOption parseRuleOption[CFG_OPTION_TOTAL] =
                     PARSE_RULE_VAL_STRID(parseRuleValStrIdPosix),                                                   // opt/repo-type
                     PARSE_RULE_VAL_STRID(parseRuleValStrIdS3),                                                      // opt/repo-type
                     PARSE_RULE_VAL_STRID(parseRuleValStrIdSftp),                                                    // opt/repo-type
-#ifndef HAVE_LIBSSH2                                                                                                // opt/repo-type
-                        PARSE_RULE_BOOL_FALSE,                                                                      // opt/repo-type
-#endif                                                                                                              // opt/repo-type
-                    PARSE_RULE_VAL_STRID(parseRuleValStrIdSftp),                                                    // opt/repo-type
-#ifndef HAVE_LIBSSH                                                                                                 // opt/repo-type
+#if !defined HAVE_LIBSSH2 && !defined HAVE_LIBSSH                                                                   // opt/repo-type
                         PARSE_RULE_BOOL_FALSE,                                                                      // opt/repo-type
 #endif                                                                                                              // opt/repo-type
                 ),                                                                                                  // opt/repo-type

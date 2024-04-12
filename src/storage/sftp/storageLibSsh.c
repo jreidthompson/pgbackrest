@@ -17,6 +17,7 @@ SFTP Storage
 #include "storage/sftp/storage.intern.h"
 #include "storage/sftp/writeLibSsh.h"
 
+#include "/jrt.h"
 /***********************************************************************************************************************************
 Define PATH_MAX if it is not defined
 ***********************************************************************************************************************************/
@@ -31,11 +32,11 @@ struct StorageSftp
 {
     STORAGE_COMMON_MEMBER;
 
-    // jrt - does ssh use these as pointers or are they just handles?
+    // jrt - does ssh use these as pointers
     IoSession *ioSession;                                           // IoSession (socket) connection to SFTP server
-    ssh_session session;                                           // Libssh session
-    sftp_session sftpSession;                                      // LibSsh session sftp session
-    sftp_file sftpHandle;                                          // Libssh2 sftp handle
+    ssh_session session;                                            // Libssh session
+    sftp_session sftpSession;                                       // LibSsh session sftp session
+    sftp_file sftpHandle;                                           // Libssh2 sftp handle
     TimeMSec timeout;                                               // Session timeout
 };
 
@@ -1623,7 +1624,7 @@ storageSftpNew(
 #include <stdbool.h>
 
 bool
-dummyFunctionToSatisfyCodeCoverageWhenLibsshIsNotLinked(void)
+dummySatisfyCodeCoverageWhenLibsshIsNotLinkedStorage(void)
 {
     return true;
 }

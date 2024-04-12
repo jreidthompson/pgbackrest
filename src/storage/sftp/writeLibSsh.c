@@ -408,5 +408,12 @@ storageWriteSftpNew(
 
     FUNCTION_LOG_RETURN(STORAGE_WRITE, storageWriteNew(this, &this->interface));
 }
+#else
+#include <stdbool.h>
 
+bool
+dummySatisfyCodeCoverageWhenLibsshIsNotLinkedWrite(void)
+{
+    return true;
+}
 #endif // HAVE_LIBSSH

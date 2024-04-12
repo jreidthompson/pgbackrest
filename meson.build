@@ -167,26 +167,50 @@ lib_z = dependency('zlib')
 
 configuration.set('ZLIB_CONST', true, description: 'Require zlib const input buffer')
 
+# jrt clean this up - remove unneded code
 # Was with-libssh requested (build with libssh rather than libssh2)?
-# Set default of not found
-lib_ssh = dependency('', required: false)
-with_libssh = get_option('with-libssh')
-if with_libssh
+#lib_ssh = dependency('libssh', required: get_option('with-libssh'))
+message('libssh : ')
+message(get_option('with-libssh').enabled())
+#with_libssh = get_option('with-libssh')
+#if with_libssh
     # Check for optional libssh library
-    lib_ssh = dependency('libssh', required: false)
+    #lib_ssh = dependency('libssh', required: false)
+#endif
+
+
+# Set libssh default of not found
+lib_ssh = dependency('', required: false)
+
+# Was with-libssh requested (build with libssh rather than libssh2)?
+if get_option('with-libssh').enabled()
+    lib_ssh = dependency('libssh', required: get_option('with-libssh'))
+
+    if lib_ssh.found()
+        configuration.set('HAVE_LIBSSH', true, description: 'Is libssh present?')
+    endif
 endif
+
+# Set libssh2 default of not found
+lib_ssh2 = dependency('', required: false)
 
 # If with-libssh requested and found, skip looking for libssh2. If requested but
 # not found we fail over to trying to build with libssh2
-# Set default of not found
-lib_ssh2 = dependency('', required: false)
 if not lib_ssh.found()
     # Find optional libssh2 library
-    lib_ssh2 = dependency('libssh2', required: false)
+    lib_ssh2 = dependency('libssh2', required: get_option('libssh2'))
 
     if lib_ssh2.found()
-        configuration.set('HAVE_LIBSSH2', true,
-            description: 'Is libssh2 present?')
+        configuration.set('HAVE_LIBSSH2', true, description: 'Is libssh2 present?')
+    endif
+endif
+
+# If libssh2 not found and libssh auto and libssh not disabled attempt to build with libssh
+if not lib_ssh2.found() and get_option('with-libssh').auto() and not get_option('with-libssh').disabled()
+    lib_ssh = dependency('libssh', required: get_option('with-libssh').auto())
+
+    if lib_ssh.found()
+        configuration.set('HAVE_LIBSSH', true, description: 'Is libssh present?')
     endif
 endif
 

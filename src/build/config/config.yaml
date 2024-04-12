@@ -1746,7 +1746,7 @@ option:
       - gcs
       - posix
       - s3
-      - sftp: HAVE_LIBSSH2|HAVE_LIBSSH
+      - sftp: HAVE_LIBSSH2 | HAVE_LIBSSH
     command:
       annotate:
         command-role:

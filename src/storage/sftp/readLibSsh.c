@@ -22,7 +22,7 @@ typedef struct StorageReadSftp
 // jrt pointers??? or no
     ssh_session *session;                                           // Libssh session
     sftp_session *sftpSession;                                      // Libssh session sftp session
-//    LIBSSH2_SFTP_HANDLE *sftpHandle;                                // Libssh session sftp handle
+    sftp_file *sftpHandle;                                          // Libssh session sftp handle
     sftp_attributes *attr;                                          // Libssh file attributes
     uint64_t current;                                               // Current bytes read from file
     uint64_t limit;                                                 // Limit bytes to be read from file (UINT64_MAX for no limit)
@@ -267,7 +267,7 @@ storageReadSftpNew(
             .storage = storage,
             .session = session,
             .sftpSession = sftpSession,
-//            .sftpHandle = sftpHandle,
+            .sftpHandle = sftpHandle,
 
             // Rather than enable/disable limit checking just use a big number when there is no limit. We can feel pretty confident
             // that no files will be > UINT64_MAX in size. This is a copy of the interface limit but it simplifies the code during
@@ -296,5 +296,12 @@ storageReadSftpNew(
 
     FUNCTION_LOG_RETURN(STORAGE_READ, storageReadNew(this, &this->interface));
 }
+#else
+#include <stdbool.h>
 
+bool
+dummySatisfyCodeCoverageWhenLibsshIsNotLinkedRead(void)
+{
+    return true;
+}
 #endif // HAVE_LIBSSH
