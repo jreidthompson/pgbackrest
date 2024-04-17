@@ -300,7 +300,7 @@ storageReadSftpNew(
 #include <stdbool.h>
 
 bool
-dummySatisfyCodeCoverageWhenLibsshIsNotLinkedRead(void)
+satisfyCodeCoverageWhenLibsshIsNotLinkedRead(void)
 {
     return true;
 }

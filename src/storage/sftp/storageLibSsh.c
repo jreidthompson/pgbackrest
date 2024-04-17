@@ -40,6 +40,14 @@ struct StorageSftp
     TimeMSec timeout;                                               // Session timeout
 };
 
+/***********************************************************************************************************************************
+Attempt to verify the host key using libssh default known hosts files (~/.ssh/known_hosts and /etc/ssh/ssh_known_hosts)
+***********************************************************************************************************************************/
+int verify_knownhost(ssh_session session)
+{
+
+}
+
 ///***********************************************************************************************************************************
 //Return known host key type based on host key type
 //***********************************************************************************************************************************/
@@ -1140,7 +1148,7 @@ storageSftpNew(
             ssh_free(this->session);
             THROW_FMT(ServiceError, "unable to set socket fd");
         }
-
+jrtdbg("socket fd %d", socketFd);
         // Set the sftp user
         if (user != NULL)
         {
@@ -1167,20 +1175,12 @@ storageSftpNew(
 //        }
 
         // Make the connection
-        if (ssh_connect(this->session) != SSH_OK)
+        if (ssh_connect(this->session) < SSH_OK)
         {
             ssh_disconnect(this->session);
             ssh_free(this->session);
             THROW_FMT(ServiceError, "unable to connect to host [%s]", strZ(host));
         }
-
-        // Verify knownhost
-//        if (verify_knownhost(this->session) < 0)
-//        {
-//            ssh_disconnect(this->session);
-//            ssh_free(this->session);
-//            THROW_FMT(ServiceError, "unable to verify known host [%s]", strZ(host));
-//        }
 
         int hashType = SSH_PUBLICKEY_HASH_SHA1;
         size_t hashSize = 0;
@@ -1200,6 +1200,7 @@ storageSftpNew(
 
             case hashTypeSha256:
                 hashType = SSH_PUBLICKEY_HASH_SHA256;
+jrtdbg("hashType %d", hashType);
 //                hashSize = HASH_TYPE_SHA256_SIZE;
                 break;
 
@@ -1208,14 +1209,11 @@ storageSftpNew(
                 break;
         }
 
-
-        int rc;
-
         // Compare fingerprint if provided else check known hosts files for a match
         if (param.hostKeyCheckType == SFTP_STRICT_HOSTKEY_CHECKING_FINGERPRINT)
         {
- //           const char *const binaryFingerprint = libssh2_hostkey_hash(this->session, hashType);
             ssh_key srv_pubkey;
+jrtdbg("check fingperprint hashType %d", hashType);
 
             if (ssh_get_server_publickey(this->session, &srv_pubkey) < SSH_OK)
             {
@@ -1225,23 +1223,25 @@ storageSftpNew(
             }
 
             unsigned char *hash;
-            rc = ssh_get_publickey_hash(srv_pubkey, hashType, &hash, &hashSize);
-            if (rc < SSH_OK)
+            if (ssh_get_publickey_hash(srv_pubkey, hashType, &hash, &hashSize) < SSH_OK)
             {
                 ssh_key_free(srv_pubkey);
                 ssh_disconnect(this->session);
                 ssh_free(this->session);
-                THROW_FMT(ServiceError, "unable to get server public key hash");
+                THROW_FMT(ServiceError, "libssh hostkey hash failed");
             }
 
-//            if (binaryFingerprint == NULL)
-//            {
-//                THROW_FMT(
-//                    ServiceError, "libssh2 hostkey hash failed: libssh2 errno [%d]", libssh2_session_last_errno(this->session));
-//            }
-
             char *fingerprint = ssh_get_fingerprint_hash(hashType, hash, hashSize);
-            // remove the prepended hash type
+            if (fingerprint == NULL)
+                THROW_FMT( ServiceError, "unable to get fingerprint hash");
+
+            if (!strBeginsWithZ(param.hostFingerprint, "SHA256:") && !strBeginsWithZ(param.hostFingerprint, "MD5:"))
+            {
+                // Skip the prepended hash type from the server fingerprint
+                fingerprint = strchr(fingerprint, ':') + 1;
+            }
+            ssh_clean_pubkey_hash(&hash);
+            ssh_key_free(srv_pubkey);
 
             if (strcmp(fingerprint, strZ(param.hostFingerprint)) != 0)
             {
@@ -1249,9 +1249,20 @@ storageSftpNew(
                     ServiceError, "host [%s] and configured fingerprint (repo-sftp-host-fingerprint) [%s] do not match",
                     fingerprint, strZ(param.hostFingerprint));
             }
+jrtdbg("check fingperprint passed");
         }
-//        else if (param.hostKeyCheckType != SFTP_STRICT_HOSTKEY_CHECKING_NONE)
-//        {
+        else if (param.hostKeyCheckType != SFTP_STRICT_HOSTKEY_CHECKING_NONE)
+        {
+jrtdbg("check knownhosts");
+
+            if (verify_knownhost(this->session) < SSH_OK)
+            {
+                ssh_disconnect(this->session);
+                ssh_free(this->session);
+                THROW_FMT(ServiceError, "unable to verify known host [%s]", strZ(host));
+            }
+
+
 //            // Init the known host collection
 //            LIBSSH2_KNOWNHOSTS *const knownHostsList = libssh2_knownhost_init(this->session);
 //
@@ -1360,7 +1371,7 @@ storageSftpNew(
 //
 //            // Free the known hosts list
 //            libssh2_knownhost_free(knownHostsList);
-//        }
+        }
 
 //        // Init SFTP session
 //        if (libssh2_init(0) != 0)
@@ -1624,7 +1635,7 @@ storageSftpNew(
 #include <stdbool.h>
 
 bool
-dummySatisfyCodeCoverageWhenLibsshIsNotLinkedStorage(void)
+satisfyCodeCoverageWhenLibsshIsNotLinkedStorage(void)
 {
     return true;
 }

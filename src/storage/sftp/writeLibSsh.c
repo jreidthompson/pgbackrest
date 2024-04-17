@@ -412,7 +412,7 @@ storageWriteSftpNew(
 #include <stdbool.h>
 
 bool
-dummySatisfyCodeCoverageWhenLibsshIsNotLinkedWrite(void)
+satisfyCodeCoverageWhenLibsshIsNotLinkedWrite(void)
 {
     return true;
 }

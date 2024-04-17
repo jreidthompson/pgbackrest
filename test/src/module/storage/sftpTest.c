@@ -13,6 +13,7 @@ Test SFTP Storage
 #include "common/harnessConfig.h"
 #include "common/harnessFd.h"
 #include "common/harnessFork.h"
+#include "common/harnessLibSsh.h"
 #include "common/harnessLibSsh2.h"
 #include "common/harnessSocket.h"
 #include "common/harnessStorage.h"
@@ -2040,6 +2041,14 @@ testRun(void)
 
         TEST_RESULT_BOOL(
             unsetenv("PGBACKREST_REPO1_SFTP_PRIVATE_KEY_PASSPHRASE"), 0, "unset PGBACKREST_REPO1_SFTP_PRIVATE_KEY_PASSPHRASE");
+
+        TEST_RESULT_BOOL(
+            satisfyCodeCoverageWhenLibsshIsNotLinkedStorage(), true, "satisfy sftp storage coverage when libssh is not linked");
+        TEST_RESULT_BOOL(
+            satisfyCodeCoverageWhenLibsshIsNotLinkedRead(), true, "satisfy sftp read coverage when libssh is not linked");
+        TEST_RESULT_BOOL(
+            satisfyCodeCoverageWhenLibsshIsNotLinkedWrite(), true, "satisfy sftp write coverage when libssh is not linked");
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
