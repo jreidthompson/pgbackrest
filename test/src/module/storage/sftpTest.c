@@ -52,6 +52,7 @@ storageTestPathExpression(const String *expression, const String *path)
 
     return result;
 }
+
 // temporary hack to get around the fact that the test harness doesn't support the full set of expressions
 #endif
 
@@ -2293,8 +2294,8 @@ testRun(void)
                 .write = true, .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_FINGERPRINT,
                 .hostFingerprint = STRDEF("SHA256:fingerprint_hash")),
             ServiceError,
-            "host [SHA256:fail_fingerprint_hash] and configured fingerprint (repo-sftp-host-fingerprint) [SHA256:fingerprint_hash]"\
-            " do not match");
+            "host [SHA256:fail_fingerprint_hash] and configured fingerprint (repo-sftp-host-fingerprint)"                          \
+            "[SHA256:fingerprint_hash] do not match");
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("ssh get ssh_get_fingerprint_hash failure SHA256- no prepended hash type");
@@ -2345,11 +2346,6 @@ testRun(void)
                 .hostFingerprint = STRDEF("fingerprint_hash")),
             ServiceError,
             "host [fail_fingerprint_hash] and configured fingerprint (repo-sftp-host-fingerprint) [fingerprint_hash] do not match");
-
-
-
-
-
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
