@@ -616,6 +616,9 @@ unit:
           name: libSsh2
           integration: false
         harness:
+          name: libSsh
+          integration: false
+        harness:
           name: fd
           shim:
             common/io/fd:

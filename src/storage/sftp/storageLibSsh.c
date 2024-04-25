@@ -17,7 +17,6 @@ SFTP Storage
 #include "storage/sftp/storage.intern.h"
 #include "storage/sftp/writeLibSsh.h"
 
-#include "/jrt.h"
 /***********************************************************************************************************************************
 Define PATH_MAX if it is not defined
 ***********************************************************************************************************************************/
@@ -45,7 +44,14 @@ Attempt to verify the host key using libssh default known hosts files (~/.ssh/kn
 ***********************************************************************************************************************************/
 int verify_knownhost(ssh_session session)
 {
+    FUNCTION_TEST_BEGIN();
+        FUNCTION_TEST_PARAM_P(VOID, session);
+    FUNCTION_TEST_END();
 
+    ASSERT(session != NULL);
+
+
+    FUNCTION_TEST_RETURN(INT, 0);
 }
 
 ///***********************************************************************************************************************************
@@ -1134,28 +1140,28 @@ storageSftpNew(
 
         // jrt !!! - set non blocking on file after sftp_open()
 
-        // Init SFTP session
+        // Init SSH session
         this->session = ssh_new();
-
         if (this->session == NULL)
             THROW_FMT(ServiceError, "unable to init libssh session");
 
         // Set the sftp socket fd
         this->ioSession = ioClientOpen(sckClientNew(host, port, timeout, timeout));
         int socketFd = ioSessionFd(this->ioSession);
+
         if (ssh_options_set(this->session, SSH_OPTIONS_FD, &socketFd) < SSH_OK)
         {
             ssh_free(this->session);
-            THROW_FMT(ServiceError, "unable to set socket fd");
+            THROW_FMT(ServiceError, "unable to set sftp socket fd [%d]", socketFd);
         }
-jrtdbg("socket fd %d", socketFd);
+
         // Set the sftp user
         if (user != NULL)
         {
             if (ssh_options_set(this->session, SSH_OPTIONS_USER, strZ(user)) < SSH_OK)
             {
                 ssh_free(this->session);
-                THROW_FMT(ServiceError, "unable to set user [%s]", strZ(user));
+                THROW_FMT(ServiceError, "unable to set sftp user [%s]", strZ(user));
             }
         }
 
@@ -1163,23 +1169,22 @@ jrtdbg("socket fd %d", socketFd);
         if (ssh_options_set(this->session, SSH_OPTIONS_HOST, strZ(host)) < SSH_OK)
         {
             ssh_free(this->session);
-            THROW_FMT(ServiceError, "unable to set host [%s]", strZ(host));
+            THROW_FMT(ServiceError, "unable to set sftp host [%s]", strZ(host));
         }
 
-        // jrt remove - set above with the socket fd
-//        // Set the sftp host port
-//        if (ssh_options_set(this->session, SSH_OPTIONS_PORT_STR, strZ(strNewFmt("%u", port))) < SSH_OK)
-//        {
-//            ssh_free(this->session);
-//            THROW_FMT(ServiceError, "unable to set port [%u]", port);
-//        }
+        // Set the sftp host port
+        if (ssh_options_set(this->session, SSH_OPTIONS_PORT, &port) < SSH_OK)
+        {
+            ssh_free(this->session);
+            THROW_FMT(ServiceError, "unable to set sftp port [%u]", port);
+        }
 
         // Make the connection
         if (ssh_connect(this->session) < SSH_OK)
         {
             ssh_disconnect(this->session);
             ssh_free(this->session);
-            THROW_FMT(ServiceError, "unable to connect to host [%s]", strZ(host));
+            THROW_FMT(ServiceError, "unable to connect to sftp host [%s]", strZ(host));
         }
 
         int hashType = SSH_PUBLICKEY_HASH_SHA1;
@@ -1190,18 +1195,14 @@ jrtdbg("socket fd %d", socketFd);
         {
             case hashTypeMd5:
                 hashType = SSH_PUBLICKEY_HASH_MD5;
-//                hashSize = HASH_TYPE_M5_SIZE;
                 break;
 
             case hashTypeSha1:
                 hashType = SSH_PUBLICKEY_HASH_SHA1;
-//                hashSize = HASH_TYPE_SHA1_SIZE;
                 break;
 
             case hashTypeSha256:
                 hashType = SSH_PUBLICKEY_HASH_SHA256;
-jrtdbg("hashType %d", hashType);
-//                hashSize = HASH_TYPE_SHA256_SIZE;
                 break;
 
             default:
@@ -1213,7 +1214,6 @@ jrtdbg("hashType %d", hashType);
         if (param.hostKeyCheckType == SFTP_STRICT_HOSTKEY_CHECKING_FINGERPRINT)
         {
             ssh_key srv_pubkey;
-jrtdbg("check fingperprint hashType %d", hashType);
 
             if (ssh_get_server_publickey(this->session, &srv_pubkey) < SSH_OK)
             {
@@ -1249,11 +1249,11 @@ jrtdbg("check fingperprint hashType %d", hashType);
                     ServiceError, "host [%s] and configured fingerprint (repo-sftp-host-fingerprint) [%s] do not match",
                     fingerprint, strZ(param.hostFingerprint));
             }
-jrtdbg("check fingperprint passed");
+//jrtdbg("check fingperprint passed");
         }
         else if (param.hostKeyCheckType != SFTP_STRICT_HOSTKEY_CHECKING_NONE)
         {
-jrtdbg("check knownhosts");
+//jrtdbg("check knownhosts");
 
             if (verify_knownhost(this->session) < SSH_OK)
             {

@@ -33,6 +33,8 @@ Test function for path expression
 ***********************************************************************************************************************************/
 #if defined(HAVE_LIBSSH2) || defined(HAVE_LIBSSH)
 
+// jrt temporary hack to get around the fact that the test harness doesn't support the full set of expressions
+#if !defined(HAVE_LIBSSH)
 static String *
 storageTestPathExpression(const String *expression, const String *path)
 {
@@ -50,6 +52,8 @@ storageTestPathExpression(const String *expression, const String *path)
 
     return result;
 }
+// temporary hack to get around the fact that the test harness doesn't support the full set of expressions
+#endif
 
 #endif // HAVE_LIBSSH2 || HAVE_LIBSSH
 
@@ -61,12 +65,12 @@ testRun(void)
 {
     FUNCTION_HARNESS_VOID();
 
-#ifdef HAVE_LIBSSH2
     // Install shim to return defined fd
     hrnSckClientOpenShimInstall();
     // Install shim to manage true/false return for fdReady
     hrnFdReadyShimInstall();
 
+#ifdef HAVE_LIBSSH2
     // Directory and file that cannot be accessed to test permissions errors
     const String *fileNoPerm = STRDEF(TEST_PATH "/noperm/noperm");
     String *pathNoPerm = strPath(fileNoPerm);
@@ -2049,6 +2053,160 @@ testRun(void)
         TEST_RESULT_BOOL(
             satisfyCodeCoverageWhenLibsshIsNotLinkedWrite(), true, "satisfy sftp write coverage when libssh is not linked");
 #elif defined(HAVE_LIBSSH)
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("ssh init failure");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = true},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
+                .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_STRICT),
+            ServiceError, "unable to init libssh session");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("ssh option set socket fd failure");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_ERROR},
+            {.function = HRNLIBSSH_FREE, .resultInt = SSH_OK},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
+                .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_STRICT),
+            ServiceError, "unable to set sftp socket fd " HANDSHAKE_PARAM);
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("ssh option set sftp user failure");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_ERROR},
+            {.function = HRNLIBSSH_FREE, .resultInt = SSH_OK},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
+                .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_STRICT),
+            ServiceError, "unable to set sftp user [" TEST_USER "]");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("ssh option set sftp host");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_ERROR},
+            {.function = HRNLIBSSH_FREE, .resultInt = SSH_OK},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
+                .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_STRICT),
+            ServiceError, "unable to set sftp host [localhost]");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("ssh option set sftp port");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,2222]", .resultInt = SSH_ERROR},
+            {.function = HRNLIBSSH_FREE, .resultInt = SSH_OK},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 2222, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
+                .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_STRICT),
+            ServiceError, "unable to set sftp port [2222]");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("ssh connect failure");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_ERROR},
+            {.function = HRNLIBSSH_FREE, .resultInt = SSH_OK},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
+                .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_STRICT),
+            ServiceError, "unable to connect to sftp host [localhost]");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("ssh invalid host key hash type");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, 16, .keyPub = KEYPUB,
+                .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_STRICT),
+            ServiceError, "requested ssh hostkey hash type (a) not available");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("ssh get server public key");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_ERROR, .resultZ = "server public key"},
+            {.function = HRNLIBSSH_FREE, .resultInt = SSH_OK},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
+                .write = true, .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_FINGERPRINT),
+            ServiceError, "unable to get server public key");
+
+
+
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -2202,6 +2360,7 @@ testRun(void)
         HRN_FORK_END();
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -2591,6 +2750,7 @@ testRun(void)
         TEST_RESULT_STR(info.group, NULL, "check group");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -3664,6 +3824,7 @@ testRun(void)
             .level = storageInfoLevelBasic, .expression = "\\/file$");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -3875,6 +4036,7 @@ testRun(void)
             "unable to close path '" TEST_PATH "' after listing: libssh2 error [-43]");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -3998,6 +4160,7 @@ testRun(void)
         TEST_ERROR(storagePathP(storageTest, STRDEF("<WHATEVS>")), AssertError, "invalid expression '<WHATEVS>'");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -4194,6 +4357,7 @@ testRun(void)
             "sftp error unable to create path '" TEST_PATH "/subfail': libssh2 error [-31]: sftp error [11]");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -4570,6 +4734,7 @@ testRun(void)
             "unable to remove path '%s': libssh2 error [-7]", strZ(pathRemove1));
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -4648,6 +4813,7 @@ testRun(void)
         TEST_RESULT_VOID(ioReadClose(storageReadIo(file)), "close file");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -4914,6 +5080,7 @@ testRun(void)
             "unable to read '" TEST_PATH "/readtest.txt': libssh2 error [-29]");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -5551,6 +5718,7 @@ testRun(void)
         TEST_RESULT_VOID(ioWriteClose(storageWriteIo(file)), "close file");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -6244,6 +6412,7 @@ testRun(void)
             "timeout reading '" TEST_PATH "/test.txt'");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -6554,6 +6723,7 @@ testRun(void)
             ioWriteOpen(storageWriteIo(file)), FileOpenError, STORAGE_ERROR_WRITE_OPEN ": libssh2 error [-7]", strZ(fileName));
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -6737,6 +6907,7 @@ testRun(void)
         TEST_RESULT_VOID(storageReadMove(NULL, memContextTop()), "move null file");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -7143,6 +7314,7 @@ testRun(void)
         storageRemoveP(storageTest, fileName, .errorOnMissing = true);
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -7301,6 +7473,7 @@ testRun(void)
         TEST_RESULT_STR_Z(strIdToStr(storageType(storage)), "sftp", "storage type is sftp");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storage)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -7377,6 +7550,7 @@ testRun(void)
         TEST_RESULT_VOID(storagePathSyncP(storage, STRDEF(BOGUS_STR)), "path sync is a noop");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storage)));
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -7796,6 +7970,7 @@ testRun(void)
         TEST_ERROR_FMT(
             memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest))), ServiceError,
             "timeout freeing libssh2 session: libssh2 errno [-37]");
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
@@ -7832,15 +8007,14 @@ testRun(void)
                 LIBSSH2_ERROR_SFTP_PROTOCOL, 16, &FileRemoveError, NULL, NULL),
             FileRemoveError,
             "libssh2 error [-31]: sftp error [16]");
+#elif defined(HAVE_LIBSSH)
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");
 #endif // HAVE_LIBSSH2
     }
 
-#ifdef HAVE_LIBSSH2
     hrnFdReadyShimUninstall();
     hrnSckClientOpenShimUninstall();
-#endif // HAVE_LIBSSH2
 
     FUNCTION_HARNESS_RETURN_VOID();
 }

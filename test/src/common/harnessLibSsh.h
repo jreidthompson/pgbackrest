@@ -10,8 +10,8 @@ Scripted testing for libssh so exact results can be returned for unit testing. S
 
 #ifndef HARNESS_LIBSSH_REAL
 
-#include <libssh.h>
-#include <libssh_sftp.h>
+#include <libssh/libssh.h>
+#include <libssh/sftp.h>
 #include <stdbool.h>
 
 #include "common/macro.h"
@@ -35,42 +35,47 @@ libssh authorization constants
 Function constants
 ***********************************************************************************************************************************/
 //#define HRNLIBSSH_HOSTKEY_HASH                                      "libssh_hostkey_hash"
-#define HRNLIBSSH_INIT                                                "libssh_init"
-//#define HRNLIBSSH_KNOWNHOST_ADDC                                    "libssh_knownhost_addc"
-//#define HRNLIBSSH_KNOWNHOST_CHECKP                                  "libssh_knownhost_checkp"
-//#define HRNLIBSSH_KNOWNHOST_FREE                                    "libssh_knownhost_free"
-//#define HRNLIBSSH_KNOWNHOST_INIT                                    "libssh_knownhost_init"
-//#define HRNLIBSSH_KNOWNHOST_READFILE                                "libssh_knownhost_readfile"
-//#define HRNLIBSSH_KNOWNHOST_WRITEFILE                               "libssh_knownhost_writefile"
-//#define HRNLIBSSH_SESSION_BLOCK_DIRECTIONS                          "libssh_session_block_directions"
-//#define HRNLIBSSH_SESSION_DISCONNECT_EX                             "libssh_session_disconnect_ex"
-//#define HRNLIBSSH_SESSION_FREE                                      "libssh_session_free"
-//#define HRNLIBSSH_SESSION_HANDSHAKE                                 "libssh_session_handshake"
-//#define HRNLIBSSH_SESSION_HOSTKEY                                   "libssh_session_hostkey"
-//#define HRNLIBSSH_SESSION_INIT_EX                                   "libssh_session_init_ex"
-//#define HRNLIBSSH_SESSION_LAST_ERRNO                                "libssh_session_last_errno"
-//#define HRNLIBSSH_SESSION_LAST_ERROR                                "libssh_session_last_error"
-//#define HRNLIBSSH_SFTP_CLOSE_HANDLE                                 "libssh_sftp_close_handle"
-//#define HRNLIBSSH_SFTP_FSYNC                                        "libssh_sftp_fsync"
-//#define HRNLIBSSH_SFTP_INIT                                         "libssh_sftp_init"
-//#define HRNLIBSSH_SFTP_LAST_ERROR                                   "libssh_sftp_last_error"
-//#define HRNLIBSSH_SFTP_MKDIR_EX                                     "libssh_sftp_mkdir_ex"
-//#define HRNLIBSSH_SFTP_OPEN_EX                                      "libssh_sftp_open_ex"
-//#define HRNLIBSSH_SFTP_READ                                         "libssh_sftp_read"
-//#define HRNLIBSSH_SFTP_READDIR_EX                                   "libssh_sftp_readdir_ex"
-//#define HRNLIBSSH_SFTP_RENAME_EX                                    "libssh_sftp_rename_ex"
-//#define HRNLIBSSH_SFTP_RMDIR_EX                                     "libssh_sftp_rmdir_ex"
-//#define HRNLIBSSH_SFTP_SEEK64                                       "libssh_sftp_seek64"
-//#define HRNLIBSSH_SFTP_SHUTDOWN                                     "libssh_sftp_shutdown"
-//#define HRNLIBSSH_SFTP_STAT_EX                                      "libssh_sftp_stat_ex"
-//#define HRNLIBSSH_SFTP_SYMLINK_EX                                   "libssh_sftp_symlink_ex"
-//#define HRNLIBSSH_SFTP_UNLINK_EX                                    "libssh_sftp_unlink_ex"
-//#define HRNLIBSSH_SFTP_WRITE                                        "libssh_sftp_write"
-//#define HRNLIBSSH_USERAUTH_PUBLICKEY_FROMFILE_EX                    "libssh_userauth_publickey_fromfile_ex"
+#define HRNLIBSSH_INIT                                              "ssh_init"
+#define HRNLIBSSH_NEW                                               "ssh_new"
+#define HRNLIBSSH_OPTIONS_SET                                       "ssh_options_set"
+#define HRNLIBSSH_FREE                                              "ssh_free"
+#define HRNLIBSSH_CONNECT                                           "ssh_connect"
+#define HRNLIBSSH_DISCONNECT                                        "ssh_disconnect"
+#define HRNLIBSSH_GET_SERVER_PUBLICKEY                              "ssh_get_server_publickey"
+#define HRNLIBSSH_GET_PUBLICKEY_HASH                                "ssh_get_publickey_hash"
+//#define HRNLIBSSH_KNOWNHOST_ADDC                                    "ssh_knownhost_addc"
+//#define HRNLIBSSH_KNOWNHOST_CHECKP                                  "ssh_knownhost_checkp"
+//#define HRNLIBSSH_KNOWNHOST_FREE                                    "ssh_knownhost_free"
+//#define HRNLIBSSH_KNOWNHOST_INIT                                    "ssh_knownhost_init"
+//#define HRNLIBSSH_KNOWNHOST_READFILE                                "ssh_knownhost_readfile"
+//#define HRNLIBSSH_KNOWNHOST_WRITEFILE                               "ssh_knownhost_writefile"
+//#define HRNLIBSSH_SESSION_BLOCK_DIRECTIONS                          "ssh_session_block_directions"
+//#define HRNLIBSSH_SESSION_HANDSHAKE                                 "ssh_session_handshake"
+//#define HRNLIBSSH_SESSION_HOSTKEY                                   "ssh_session_hostkey"
+//#define HRNLIBSSH_SESSION_INIT_EX                                   "ssh_session_init_ex"
+//#define HRNLIBSSH_SESSION_LAST_ERRNO                                "ssh_session_last_errno"
+//#define HRNLIBSSH_SESSION_LAST_ERROR                                "ssh_session_last_error"
+//#define HRNLIBSSH_SFTP_CLOSE_HANDLE                                 "ssh_sftp_close_handle"
+//#define HRNLIBSSH_SFTP_FSYNC                                        "ssh_sftp_fsync"
+//#define HRNLIBSSH_SFTP_INIT                                         "ssh_sftp_init"
+//#define HRNLIBSSH_SFTP_LAST_ERROR                                   "ssh_sftp_last_error"
+//#define HRNLIBSSH_SFTP_MKDIR_EX                                     "ssh_sftp_mkdir_ex"
+//#define HRNLIBSSH_SFTP_OPEN_EX                                      "ssh_sftp_open_ex"
+//#define HRNLIBSSH_SFTP_READ                                         "ssh_sftp_read"
+//#define HRNLIBSSH_SFTP_READDIR_EX                                   "ssh_sftp_readdir_ex"
+//#define HRNLIBSSH_SFTP_RENAME_EX                                    "ssh_sftp_rename_ex"
+//#define HRNLIBSSH_SFTP_RMDIR_EX                                     "ssh_sftp_rmdir_ex"
+//#define HRNLIBSSH_SFTP_SEEK64                                       "ssh_sftp_seek64"
+//#define HRNLIBSSH_SFTP_SHUTDOWN                                     "ssh_sftp_shutdown"
+//#define HRNLIBSSH_SFTP_STAT_EX                                      "ssh_sftp_stat_ex"
+//#define HRNLIBSSH_SFTP_SYMLINK_EX                                   "ssh_sftp_symlink_ex"
+//#define HRNLIBSSH_SFTP_UNLINK_EX                                    "ssh_sftp_unlink_ex"
+//#define HRNLIBSSH_SFTP_WRITE                                        "ssh_sftp_write"
+//#define HRNLIBSSH_USERAUTH_PUBLICKEY_FROMFILE_EX                    "ssh_userauth_publickey_fromfile_ex"
 
-///***********************************************************************************************************************************
+/***********************************************************************************************************************************
 //Macros for defining groups of functions that implement commands
-//**********************************************************************************************************************************
+**********************************************************************************************************************************
 // Set of functions mimicking libssh inititialization and authorization
 #define HRNLIBSSH_MACRO_STARTUP()                                                                                                 \
     {.function = HRNLIBSSH_INIT, .param = "[0]", .resultInt = 0},                                                                 \
@@ -114,7 +119,7 @@ typedef struct HrnLibSsh
     uint64_t resultUInt;                                            // UInt result value
     const char *resultZ;                                            // Zero-terminated result value
     bool resultNull;                                                // Return null from function that normally returns a struct ptr
-//    uint64_t flags;                                                 // libssh flags
+    uint64_t flags;                                                 // libssh flags
 //    uint64_t attrPerms;                                             // libssh attr perms
 //    uint64_t atime, mtime;                                          // libssh timestamps
 //    uint64_t uid, gid;                                              // libssh uid/gid
@@ -123,7 +128,7 @@ typedef struct HrnLibSsh
 //    const String *symlinkExTarget;                                  // libssh_sftp_symlink_ex target
 //    const String *fileName;                                         // libssh_readdir* libssh_stat* filename
 //    const String *readBuffer;                                       // what to copy into read buffer
-//    TimeMSec sleep;                                                 // Sleep specified milliseconds before returning from function
+    TimeMSec sleep;                                                 // Sleep specified milliseconds before returning from function
 //    size_t len;                                                     // libssh_session_hostkey len
 //    int type;                                                       // libssh_session_hostkey type
     char *errMsg;                                                   // libssh_session_last_error error msg
@@ -132,7 +137,7 @@ typedef struct HrnLibSsh
 /***********************************************************************************************************************************
 Functions
 ***********************************************************************************************************************************/
-void hrnLibSshScriptSet(HrnLibSsh2 *hrnLibSshScriptParam);
+void hrnLibSshScriptSet(HrnLibSsh *hrnLibSshScriptParam);
 
 #endif // HARNESS_LIBSSH_REAL
 

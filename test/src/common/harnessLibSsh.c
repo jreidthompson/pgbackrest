@@ -155,23 +155,137 @@ hrnLibSshScriptRun(const char *const function, const VariantList *const param, c
 }
 
 /***********************************************************************************************************************************
-Shim for libssh_init
+Shim for ssh_new
+***********************************************************************************************************************************/
+ssh_session
+ssh_new()
+{
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_NEW, NULL, NULL);
+
+//    return hrnLibSshScriptRun(HRNLIBSSH_INIT, NULL, (HrnLibSsh *)session)->resultInt;
+//    return hrnLibSsh->resultInt;
+    return hrnLibSsh->resultNull ? NULL : (ssh_session)hrnLibSsh;
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_free
+***********************************************************************************************************************************/
+void
+ssh_free(ssh_session session)
+{
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_FREE, NULL, (HrnLibSsh *)session);
+
+    if (session == NULL)
+    {
+        snprintf(
+            hrnLibSshScriptError, sizeof(hrnLibSshScriptError),
+            "libssh script function 'ssh_free', expects session to be not NULL");
+        THROW(AssertError, hrnLibSshScriptError);
+    }
+
+    if (hrnLibSsh->resultInt != SSH_OK)
+    {
+        snprintf(
+            hrnLibSshScriptError, sizeof(hrnLibSshScriptError),
+            "libssh script function 'ssh_free', expects resultInt to be SSH_OK");
+        THROW(AssertError, hrnLibSshScriptError);
+    }
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_options_set
 ***********************************************************************************************************************************/
 int
-libssh_init(int flags)
+ssh_options_set(ssh_session session, enum ssh_options_e type, const void *value)
 {
-    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_INIT, varLstAdd(varLstNew(), varNewInt(flags)), NULL);
+    HrnLibSsh *hrnLibSsh = NULL;
+    //(void)value;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        switch (type)
+        {
+            case SSH_OPTIONS_PORT:
+            case SSH_OPTIONS_FD:
+            {
+                hrnLibSsh = hrnLibSshScriptRun(
+                    HRNLIBSSH_OPTIONS_SET,
+                    varLstAdd(
+                        varLstAdd(
+                            varLstNew(), varNewInt(type)),
+                        varNewInt(*((int*)value))),
+                    (HrnLibSsh *)session);
+                break;
+            }
+            case SSH_OPTIONS_USER:
+            case SSH_OPTIONS_HOST:
+            {
+                hrnLibSsh = hrnLibSshScriptRun(
+                    HRNLIBSSH_OPTIONS_SET,
+                    varLstAdd(
+                        varLstAdd(
+                            varLstNew(), varNewInt(type)),
+                        varNewStrZ((const char *)value)),
+                    (HrnLibSsh *)session);
+                break;
+            }
+            default:
+            {
+            }
+        }
+    }
+    MEM_CONTEXT_TEMP_END();
 
     return hrnLibSsh->resultInt;
 }
 
+/***********************************************************************************************************************************
+Shim for ssh_connect
+***********************************************************************************************************************************/
+int
+ssh_connect(ssh_session session)
+{
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_CONNECT, NULL, (HrnLibSsh *)session);
+
+    return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_disconnect
+***********************************************************************************************************************************/
+void
+ssh_disconnect(ssh_session session)
+{
+    if (session == NULL)
+    {
+        snprintf(
+            hrnLibSshScriptError, sizeof(hrnLibSshScriptError),
+            "libssh script function 'ssh_disconnect', expects session to be not NULL");
+        THROW(AssertError, hrnLibSshScriptError);
+    }
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_get_server_publickey
+***********************************************************************************************************************************/
+int
+ssh_get_server_publickey(ssh_session session, ssh_key *key)
+{
+    (void)key; // Avoid compiler complaining of unused param
+
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_GET_SERVER_PUBLICKEY, NULL, (HrnLibSsh *)session);
+
+    return hrnLibSsh->resultInt;
+}
+
+
 ///***********************************************************************************************************************************
-//Shim for libssh_knownhost_addc
+//Shim for ssh_knownhost_addc
 //***********************************************************************************************************************************/
 //int
-//libssh_knownhost_addc(
+//ssh_knownhost_addc(
 //    LIBSSH_KNOWNHOSTS *hosts, const char *host, const char *salt, const char *key, size_t keylen, const char *comment,
-//    size_t commentlen, int typemask, struct libssh_knownhost **store)
+//    size_t commentlen, int typemask, struct ssh_knownhost **store)
 //{
 //    // Avoid compiler complaining of unused param
 //    (void)store;
@@ -212,12 +326,12 @@ libssh_init(int flags)
 //}
 //
 ///***********************************************************************************************************************************
-//Shim for libssh_knownhost_checkp
+//Shim for ssh_knownhost_checkp
 //***********************************************************************************************************************************/
 //int
-//libssh_knownhost_checkp(
+//ssh_knownhost_checkp(
 //    LIBSSH_KNOWNHOSTS *hosts, const char *host, int port, const char *key, size_t keylen, int typemask,
-//    struct libssh_knownhost **knownhost)
+//    struct ssh_knownhost **knownhost)
 //{
 //    // Avoid compiler complaining of unused param
 //    (void)knownhost;
@@ -254,10 +368,10 @@ libssh_init(int flags)
 //}
 //
 ///***********************************************************************************************************************************
-//Shim for libssh_knownhost_free
+//Shim for ssh_knownhost_free
 //***********************************************************************************************************************************/
 //void
-//libssh_knownhost_free(LIBSSH_KNOWNHOSTS *hosts)
+//ssh_knownhost_free(LIBSSH_KNOWNHOSTS *hosts)
 //{
 //    if (hosts == NULL)
 //    {
@@ -269,9 +383,9 @@ libssh_init(int flags)
 //}
 //
 ///***********************************************************************************************************************************
-//Shim for libssh_knownhost_init
+//Shim for ssh_knownhost_init
 //***********************************************************************************************************************************/
-//LIBSSH_KNOWNHOSTS *
+//SSH_KNOWNHOSTS *
 //libssh_knownhost_init(LIBSSH_SESSION *session)
 //{
 //    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_KNOWNHOST_INIT, NULL, (HrnLibSsh *)session);

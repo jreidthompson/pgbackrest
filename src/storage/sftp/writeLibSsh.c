@@ -165,42 +165,42 @@ storageWriteSftp(THIS_VOID, const Buffer *const buffer)
     FUNCTION_LOG_RETURN_VOID();
 }
 
-/***********************************************************************************************************************************
-Unlink already existing file
-***********************************************************************************************************************************/
-static void
-storageWriteSftpUnlinkExisting(THIS_VOID)
-{
-    THIS(StorageWriteSftp);
-
-    FUNCTION_LOG_BEGIN(logLevelTrace);
-        FUNCTION_LOG_PARAM(STORAGE_WRITE_SFTP, this);
-    FUNCTION_LOG_END();
-
-    ASSERT(this != NULL);
-
-//    int rc;
+///***********************************************************************************************************************************
+//Unlink already existing file
+//***********************************************************************************************************************************/
+//static void
+//storageWriteSftpUnlinkExisting(THIS_VOID)
+//{
+//    THIS(StorageWriteSftp);
 //
-//    do
-//    {
-//        rc = libssh2_sftp_unlink_ex(this->sftpSession, strZ(this->interface.name), (unsigned int)strSize(this->interface.name));
-//    }
-//    while (storageSftpWaitFd(this->storage, rc));
+//    FUNCTION_LOG_BEGIN(logLevelTrace);
+//        FUNCTION_LOG_PARAM(STORAGE_WRITE_SFTP, this);
+//    FUNCTION_LOG_END();
 //
-//    if (rc != 0)
-//    {
-//        if (rc == LIBSSH2_ERROR_EAGAIN)
-//            THROW_FMT(FileWriteError, "timeout unlinking '%s'", strZ(this->interface.name));
+//    ASSERT(this != NULL);
 //
-//        else
-//            storageSftpEvalLibSsh2Error(
-//                rc, libssh2_sftp_last_error(this->sftpSession), &FileRemoveError,
-//                strNewFmt("unable to remove existing '%s'", strZ(this->interface.name)), NULL);
-//    }
-
-    FUNCTION_LOG_RETURN_VOID();
-}
-
+////    int rc;
+////
+////    do
+////    {
+////        rc = libssh2_sftp_unlink_ex(this->sftpSession, strZ(this->interface.name), (unsigned int)strSize(this->interface.name));
+////    }
+////    while (storageSftpWaitFd(this->storage, rc));
+////
+////    if (rc != 0)
+////    {
+////        if (rc == LIBSSH2_ERROR_EAGAIN)
+////            THROW_FMT(FileWriteError, "timeout unlinking '%s'", strZ(this->interface.name));
+////
+////        else
+////            storageSftpEvalLibSsh2Error(
+////                rc, libssh2_sftp_last_error(this->sftpSession), &FileRemoveError,
+////                strNewFmt("unable to remove existing '%s'", strZ(this->interface.name)), NULL);
+////    }
+//
+//    FUNCTION_LOG_RETURN_VOID();
+//}
+//
 /***********************************************************************************************************************************
 Rename a file
 ***********************************************************************************************************************************/
@@ -405,6 +405,8 @@ storageWriteSftpNew(
        this->nameTmp = atomic ? strNewFmt("%s." STORAGE_FILE_TEMP_EXT, strZ(name)) : this->interface.name;
    }
    OBJ_NEW_END();
+// remove this call
+storageWriteSftpRename(this);
 
     FUNCTION_LOG_RETURN(STORAGE_WRITE, storageWriteNew(this, &this->interface));
 }

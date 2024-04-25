@@ -399,8 +399,19 @@ sub containerBuild
                 "    yum -y install openssh-server openssh-clients wget sudo valgrind git \\\n" .
                 "        perl perl-Digest-SHA perl-DBD-Pg perl-YAML-LibYAML openssl \\\n" .
                 "        gcc make perl-ExtUtils-MakeMaker perl-Test-Simple openssl-devel perl-ExtUtils-Embed rpm-build \\\n" .
-                "        libyaml-devel zlib-devel libxml2-devel lz4-devel lz4 bzip2-devel bzip2 perl-JSON-PP ccache meson \\\n" .
-                "        libssh2-devel";
+                "        libyaml-devel zlib-devel libxml2-devel lz4-devel lz4 bzip2-devel bzip2 perl-JSON-PP ccache meson";
+
+                if ($strOS eq VM_F38)
+                {
+                    $strScript .=
+                        " libssh-devel";
+                }
+                else
+                {
+                    $strScript .=
+                        " libssh2-devel";
+                }
+                &log(INFO, "jrt - $strScript");
         }
         else
         {
