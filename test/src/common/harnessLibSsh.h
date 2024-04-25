@@ -43,7 +43,9 @@ Function constants
 #define HRNLIBSSH_DISCONNECT                                        "ssh_disconnect"
 #define HRNLIBSSH_GET_SERVER_PUBLICKEY                              "ssh_get_server_publickey"
 #define HRNLIBSSH_GET_PUBLICKEY_HASH                                "ssh_get_publickey_hash"
-//#define HRNLIBSSH_KNOWNHOST_ADDC                                    "ssh_knownhost_addc"
+#define HRNLIBSSH_GET_FINGERPRINT_HASH                              "ssh_get_fingerprint_hash"
+#define HRNLIBSSH_KEY_FREE                                          "ssh_key_free"
+#define HRNLIBSSH_CLEAN_PUBKEY_HASH                                 "ssh_clean_pubkey_hash"
 //#define HRNLIBSSH_KNOWNHOST_CHECKP                                  "ssh_knownhost_checkp"
 //#define HRNLIBSSH_KNOWNHOST_FREE                                    "ssh_knownhost_free"
 //#define HRNLIBSSH_KNOWNHOST_INIT                                    "ssh_knownhost_init"
@@ -129,8 +131,8 @@ typedef struct HrnLibSsh
 //    const String *fileName;                                         // libssh_readdir* libssh_stat* filename
 //    const String *readBuffer;                                       // what to copy into read buffer
     TimeMSec sleep;                                                 // Sleep specified milliseconds before returning from function
-//    size_t len;                                                     // libssh_session_hostkey len
-//    int type;                                                       // libssh_session_hostkey type
+    size_t len;                                                     // libssh_session_hostkey len
+    int type;                                                       // libssh_session_hostkey type
     char *errMsg;                                                   // libssh_session_last_error error msg
 } HrnLibSsh;
 

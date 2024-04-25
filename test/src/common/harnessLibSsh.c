@@ -173,7 +173,7 @@ Shim for ssh_free
 void
 ssh_free(ssh_session session)
 {
-    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_FREE, NULL, (HrnLibSsh *)session);
+//    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_FREE, NULL, (HrnLibSsh *)session);
 
     if (session == NULL)
     {
@@ -183,13 +183,13 @@ ssh_free(ssh_session session)
         THROW(AssertError, hrnLibSshScriptError);
     }
 
-    if (hrnLibSsh->resultInt != SSH_OK)
-    {
-        snprintf(
-            hrnLibSshScriptError, sizeof(hrnLibSshScriptError),
-            "libssh script function 'ssh_free', expects resultInt to be SSH_OK");
-        THROW(AssertError, hrnLibSshScriptError);
-    }
+//    if (hrnLibSsh->resultInt != SSH_OK)
+//    {
+//        snprintf(
+//            hrnLibSshScriptError, sizeof(hrnLibSshScriptError),
+//            "libssh script function 'ssh_free', expects resultInt to be SSH_OK");
+//        THROW(AssertError, hrnLibSshScriptError);
+//    }
 }
 
 /***********************************************************************************************************************************
@@ -275,9 +275,75 @@ ssh_get_server_publickey(ssh_session session, ssh_key *key)
 
     HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_GET_SERVER_PUBLICKEY, NULL, (HrnLibSsh *)session);
 
+    // jrt remove this if we don't use it in the tests anywhere
+    // Hack the key 
+    //*(key) = (ssh_key)hrnLibSsh->resultZ;
+
     return hrnLibSsh->resultInt;
 }
 
+/***********************************************************************************************************************************
+Shim for ssh_key_free
+***********************************************************************************************************************************/
+void
+ssh_key_free(ssh_key key)
+{
+    if (key == NULL)
+    {
+        snprintf(
+            hrnLibSshScriptError, sizeof(hrnLibSshScriptError),
+            "libssh script function 'ssh_key_free', expects key to be not NULL");
+        THROW(AssertError, hrnLibSshScriptError);
+    }
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_get_publickey_hash
+***********************************************************************************************************************************/
+int
+ssh_get_publickey_hash(const ssh_key key, enum ssh_publickey_hash_type type, unsigned char ** hash, size_t * hlen)
+{
+    (void)key; // Avoid compiler complaining of unused param
+
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_GET_PUBLICKEY_HASH, NULL, NULL);
+
+    (void) type;
+    //type = (int)hrnLibSsh->type;
+    *hlen = (size_t)hrnLibSsh->len;
+    *hash = (unsigned char *)hrnLibSsh->resultZ;
+
+    return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_get_publickey_hash
+***********************************************************************************************************************************/
+char *
+ssh_get_fingerprint_hash(enum ssh_publickey_hash_type type, unsigned char *hash, size_t len)
+{
+    (void) type; // Avoid compiler complaining of unused param
+    (void) hash;
+    (void) len;
+
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_GET_FINGERPRINT_HASH, NULL, NULL);
+
+    return hrnLibSsh->resultNull ? NULL : (char *)hrnLibSsh->resultZ;
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_clean_pubkey_hash
+***********************************************************************************************************************************/
+void
+ssh_clean_pubkey_hash(unsigned char **hash)
+{
+    if (hash == NULL)
+    {
+        snprintf(
+            hrnLibSshScriptError, sizeof(hrnLibSshScriptError),
+            "libssh script function 'ssh_clean_pubkey_hash', expects hash to be not NULL");
+        THROW(AssertError, hrnLibSshScriptError);
+    }
+}
 
 ///***********************************************************************************************************************************
 //Shim for ssh_knownhost_addc

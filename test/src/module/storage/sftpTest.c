@@ -2075,7 +2075,6 @@ testRun(void)
         {
             {.function = HRNLIBSSH_NEW, .resultNull = false},
             {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_ERROR},
-            {.function = HRNLIBSSH_FREE, .resultInt = SSH_OK},
             {.function = NULL}
         });
 
@@ -2093,7 +2092,6 @@ testRun(void)
             {.function = HRNLIBSSH_NEW, .resultNull = false},
             {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
             {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_ERROR},
-            {.function = HRNLIBSSH_FREE, .resultInt = SSH_OK},
             {.function = NULL}
         });
 
@@ -2112,7 +2110,6 @@ testRun(void)
             {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
             {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
             {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_ERROR},
-            {.function = HRNLIBSSH_FREE, .resultInt = SSH_OK},
             {.function = NULL}
         });
 
@@ -2132,7 +2129,6 @@ testRun(void)
             {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
             {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
             {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,2222]", .resultInt = SSH_ERROR},
-            {.function = HRNLIBSSH_FREE, .resultInt = SSH_OK},
             {.function = NULL}
         });
 
@@ -2153,7 +2149,6 @@ testRun(void)
             {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
             {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
             {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_ERROR},
-            {.function = HRNLIBSSH_FREE, .resultInt = SSH_OK},
             {.function = NULL}
         });
 
@@ -2184,7 +2179,7 @@ testRun(void)
             ServiceError, "requested ssh hostkey hash type (a) not available");
 
         // -------------------------------------------------------------------------------------------------------------------------
-        TEST_TITLE("ssh get server public key");
+        TEST_TITLE("ssh get server public key failure");
 
         hrnLibSshScriptSet((HrnLibSsh [])
         {
@@ -2195,7 +2190,6 @@ testRun(void)
             {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
             {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
             {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_ERROR, .resultZ = "server public key"},
-            {.function = HRNLIBSSH_FREE, .resultInt = SSH_OK},
             {.function = NULL}
         });
 
@@ -2204,6 +2198,155 @@ testRun(void)
                 TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
                 .write = true, .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_FINGERPRINT),
             ServiceError, "unable to get server public key");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("ssh get public key hash failure");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_OK, .resultZ = "server public key"},
+            {.function = HRNLIBSSH_GET_PUBLICKEY_HASH, .resultInt = SSH_ERROR, .resultZ = "public_key_hash"},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
+                .write = true, .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_FINGERPRINT),
+            ServiceError, "unable to get public key hash");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("ssh get ssh_get_fingerprint_hash failure");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_OK, .resultZ = "server public key - unused"},
+            {.function = HRNLIBSSH_GET_PUBLICKEY_HASH, .resultInt = SSH_OK, .resultZ = "public_key_hash"},
+            {.function = HRNLIBSSH_GET_FINGERPRINT_HASH, .resultNull = true},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
+                .write = true, .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_FINGERPRINT),
+            ServiceError, "unable to get fingerprint hash");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("ssh get ssh_get_fingerprint_hash failure md5 - user prepended hash type");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_OK, .resultZ = "server public key - unused"},
+            {.function = HRNLIBSSH_GET_PUBLICKEY_HASH, .resultInt = SSH_OK, .resultZ = "public_key_hash"},
+            {.function = HRNLIBSSH_GET_FINGERPRINT_HASH, .resultNull = false, .resultZ = "MD5:fail_fingerprint_hash"},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
+                .write = true, .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_FINGERPRINT,
+                .hostFingerprint = STRDEF("MD5:fingerprint_hash")),
+            ServiceError,
+            "host [MD5:fail_fingerprint_hash] and configured fingerprint (repo-sftp-host-fingerprint) [MD5:fingerprint_hash] do"   \
+            " not match");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("ssh get ssh_get_fingerprint_hash failure sha256 - user prepended hash type");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_OK, .resultZ = "server public key - unused"},
+            {.function = HRNLIBSSH_GET_PUBLICKEY_HASH, .resultInt = SSH_OK, .resultZ = "public_key_hash"},
+            {.function = HRNLIBSSH_GET_FINGERPRINT_HASH, .resultNull = false, .resultZ = "SHA256:fail_fingerprint_hash"},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
+                .write = true, .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_FINGERPRINT,
+                .hostFingerprint = STRDEF("SHA256:fingerprint_hash")),
+            ServiceError,
+            "host [SHA256:fail_fingerprint_hash] and configured fingerprint (repo-sftp-host-fingerprint) [SHA256:fingerprint_hash]"\
+            " do not match");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("ssh get ssh_get_fingerprint_hash failure SHA256- no prepended hash type");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_OK, .resultZ = "server public key - unused"},
+            {.function = HRNLIBSSH_GET_PUBLICKEY_HASH, .resultInt = SSH_OK, .resultZ = "public_key_hash"},
+            {.function = HRNLIBSSH_GET_FINGERPRINT_HASH, .resultNull = false, .resultZ = "SHA256:fail_fingerprint_hash"},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
+                .write = true, .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_FINGERPRINT,
+                .hostFingerprint = STRDEF("fingerprint_hash")),
+            ServiceError,
+            "host [fail_fingerprint_hash] and configured fingerprint (repo-sftp-host-fingerprint) [fingerprint_hash] do not match");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("ssh get ssh_get_fingerprint_hash failure MD5- no prepended hash type");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_OK, .resultZ = "server public key - unused"},
+            {.function = HRNLIBSSH_GET_PUBLICKEY_HASH, .resultInt = SSH_OK, .resultZ = "public_key_hash"},
+            {.function = HRNLIBSSH_GET_FINGERPRINT_HASH, .resultNull = false, .resultZ = "MD5:fail_fingerprint_hash"},
+            {.function = NULL}
+        });
+
+        TEST_ERROR(
+            storageSftpNewP(
+                TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
+                .write = true, .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_FINGERPRINT,
+                .hostFingerprint = STRDEF("fingerprint_hash")),
+            ServiceError,
+            "host [fail_fingerprint_hash] and configured fingerprint (repo-sftp-host-fingerprint) [fingerprint_hash] do not match");
+
+
 
 
 

@@ -1228,23 +1228,38 @@ storageSftpNew(
                 ssh_key_free(srv_pubkey);
                 ssh_disconnect(this->session);
                 ssh_free(this->session);
-                THROW_FMT(ServiceError, "libssh hostkey hash failed");
+                THROW_FMT(ServiceError, "unable to get public key hash");
             }
 
             char *fingerprint = ssh_get_fingerprint_hash(hashType, hash, hashSize);
             if (fingerprint == NULL)
-                THROW_FMT( ServiceError, "unable to get fingerprint hash");
-
-            if (!strBeginsWithZ(param.hostFingerprint, "SHA256:") && !strBeginsWithZ(param.hostFingerprint, "MD5:"))
             {
-                // Skip the prepended hash type from the server fingerprint
-                fingerprint = strchr(fingerprint, ':') + 1;
+                ssh_key_free(srv_pubkey);
+                ssh_disconnect(this->session);
+                ssh_free(this->session);
+                THROW_FMT( ServiceError, "unable to get fingerprint hash");
             }
+
+            MEM_CONTEXT_TEMP_BEGIN()
+            {
+                // Check if the user provided fingerprint is prepended with the hash type
+                if (!strBeginsWithZ(strLower(strDup(param.hostFingerprint)), "sha256:") &&
+                    !strBeginsWithZ(strLower(strDup(param.hostFingerprint)), "md5:"))
+                {
+                    // If not, then skip the prepended hash type on the server fingerprint
+                    fingerprint = strchr(fingerprint, ':') + 1;
+                }
+            }
+            MEM_CONTEXT_TEMP_END();
+
             ssh_clean_pubkey_hash(&hash);
             ssh_key_free(srv_pubkey);
 
             if (strcmp(fingerprint, strZ(param.hostFingerprint)) != 0)
             {
+                ssh_disconnect(this->session);
+                ssh_free(this->session);
+
                 THROW_FMT(
                     ServiceError, "host [%s] and configured fingerprint (repo-sftp-host-fingerprint) [%s] do not match",
                     fingerprint, strZ(param.hostFingerprint));
