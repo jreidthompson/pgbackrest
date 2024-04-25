@@ -2295,7 +2295,7 @@ testRun(void)
                 .hostFingerprint = STRDEF("SHA256:fingerprint_hash")),
             ServiceError,
             "host [SHA256:fail_fingerprint_hash] and configured fingerprint (repo-sftp-host-fingerprint)"                          \
-            "[SHA256:fingerprint_hash] do not match");
+            " [SHA256:fingerprint_hash] do not match");
 
         // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("ssh get ssh_get_fingerprint_hash failure SHA256- no prepended hash type");
