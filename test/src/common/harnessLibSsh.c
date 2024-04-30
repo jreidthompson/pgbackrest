@@ -219,6 +219,8 @@ ssh_options_set(ssh_session session, enum ssh_options_e type, const void *value)
             }
             case SSH_OPTIONS_USER:
             case SSH_OPTIONS_HOST:
+            case SSH_OPTIONS_KNOWNHOSTS:
+            case SSH_OPTIONS_GLOBAL_KNOWNHOSTS:
             {
                 hrnLibSsh = hrnLibSshScriptRun(
                     HRNLIBSSH_OPTIONS_SET,
@@ -237,6 +239,32 @@ ssh_options_set(ssh_session session, enum ssh_options_e type, const void *value)
     MEM_CONTEXT_TEMP_END();
 
     return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_options_get
+***********************************************************************************************************************************/
+int
+ssh_options_get(ssh_session session, enum ssh_options_e type, char **value)
+{
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_OPTIONS_GET, NULL, (HrnLibSsh *)session);
+
+    switch(type)
+    {
+        case SSH_OPTIONS_KNOWNHOSTS:
+        case SSH_OPTIONS_GLOBAL_KNOWNHOSTS:
+        {
+                *(value) = (char *)hrnLibSsh->resultZ;
+                break;
+        }
+        default:
+        {
+            break;
+        }
+    }
+
+    return hrnLibSsh->resultInt;
+
 }
 
 /***********************************************************************************************************************************
@@ -276,8 +304,8 @@ ssh_get_server_publickey(ssh_session session, ssh_key *key)
     HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_GET_SERVER_PUBLICKEY, NULL, (HrnLibSsh *)session);
 
     // jrt remove this if we don't use it in the tests anywhere
-    // Hack the key 
-    //*(key) = (ssh_key)hrnLibSsh->resultZ;
+    // Hack the key
+    *(key) = (ssh_key)hrnLibSsh->resultZ;
 
     return hrnLibSsh->resultInt;
 }
@@ -344,6 +372,101 @@ ssh_clean_pubkey_hash(unsigned char **hash)
         THROW(AssertError, hrnLibSshScriptError);
     }
 }
+
+/***********************************************************************************************************************************
+Shim for ssh_session_is_known_server
+***********************************************************************************************************************************/
+enum ssh_known_hosts_e
+ssh_session_is_known_server(ssh_session session)
+{
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_SESSION_IS_KNOWN_SERVER, NULL, (HrnLibSsh *)session);
+
+    return (enum ssh_known_hosts_e)hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_get_error
+***********************************************************************************************************************************/
+const char *
+ssh_get_error(void *error)
+{
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_GET_ERROR, NULL, (HrnLibSsh *)error);
+
+    return hrnLibSsh->resultNull ? NULL : (const char *)hrnLibSsh->resultZ;
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_get_error_code
+***********************************************************************************************************************************/
+int
+ssh_get_error_code(void *error)
+{
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_GET_ERROR_CODE, NULL, (HrnLibSsh *)error);
+
+    return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_session_update_known_hosts
+***********************************************************************************************************************************/
+int
+ssh_session_update_known_hosts(ssh_session session)
+{
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_SESSION_UPDATE_KNOWN_HOSTS, NULL, (HrnLibSsh *)session);
+
+    return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_new
+***********************************************************************************************************************************/
+sftp_session
+sftp_new(ssh_session session)
+{
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_SFTP_NEW, NULL, (HrnLibSsh *)session);
+
+    return hrnLibSsh->resultNull ? NULL : (sftp_session)hrnLibSsh;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_init
+***********************************************************************************************************************************/
+int
+sftp_init(sftp_session sftpSession)
+{
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_SFTP_INIT, NULL, (HrnLibSsh *)sftpSession);
+
+    return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_free
+***********************************************************************************************************************************/
+void
+sftp_free(sftp_session sftpsession)
+{
+    if (sftpsession == NULL)
+    {
+        snprintf(
+            hrnLibSshScriptError, sizeof(hrnLibSshScriptError),
+            "libssh script function 'sftp_free', expects sftpsession to be not NULL");
+        THROW(AssertError, hrnLibSshScriptError);
+    }
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_get_error
+***********************************************************************************************************************************/
+int
+sftp_get_error(sftp_session sftpSession)
+{
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_SFTP_GET_ERROR, NULL, (HrnLibSsh *)sftpSession);
+
+    return hrnLibSsh->resultInt;
+}
+
+
+
 
 ///***********************************************************************************************************************************
 //Shim for ssh_knownhost_addc

@@ -167,18 +167,6 @@ lib_z = dependency('zlib')
 
 configuration.set('ZLIB_CONST', true, description: 'Require zlib const input buffer')
 
-# jrt clean this up - remove unneded code
-# Was with-libssh requested (build with libssh rather than libssh2)?
-#lib_ssh = dependency('libssh', required: get_option('with-libssh'))
-message('libssh : ')
-message(get_option('with-libssh').enabled())
-#with_libssh = get_option('with-libssh')
-#if with_libssh
-    # Check for optional libssh library
-    #lib_ssh = dependency('libssh', required: false)
-#endif
-
-
 # Set libssh default of not found
 lib_ssh = dependency('', required: false)
 
@@ -209,7 +197,7 @@ endif
 if not lib_ssh2.found() and get_option('with-libssh').auto() and not get_option('with-libssh').disabled()
     lib_ssh = dependency('libssh', required: get_option('with-libssh').auto())
 
-    if lib_ssh.found()
+if lib_ssh.found()
         configuration.set('HAVE_LIBSSH', true, description: 'Is libssh present?')
     endif
 endif

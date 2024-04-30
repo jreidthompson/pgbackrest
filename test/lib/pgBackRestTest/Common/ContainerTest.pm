@@ -411,7 +411,6 @@ sub containerBuild
                     $strScript .=
                         " libssh2-devel";
                 }
-                &log(INFO, "jrt - $strScript");
         }
         else
         {

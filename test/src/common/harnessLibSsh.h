@@ -34,11 +34,11 @@ libssh authorization constants
 /***********************************************************************************************************************************
 Function constants
 ***********************************************************************************************************************************/
-//#define HRNLIBSSH_HOSTKEY_HASH                                      "libssh_hostkey_hash"
 #define HRNLIBSSH_INIT                                              "ssh_init"
 #define HRNLIBSSH_NEW                                               "ssh_new"
-#define HRNLIBSSH_OPTIONS_SET                                       "ssh_options_set"
 #define HRNLIBSSH_FREE                                              "ssh_free"
+#define HRNLIBSSH_OPTIONS_SET                                       "ssh_options_set"
+#define HRNLIBSSH_OPTIONS_GET                                       "ssh_options_get"
 #define HRNLIBSSH_CONNECT                                           "ssh_connect"
 #define HRNLIBSSH_DISCONNECT                                        "ssh_disconnect"
 #define HRNLIBSSH_GET_SERVER_PUBLICKEY                              "ssh_get_server_publickey"
@@ -46,10 +46,14 @@ Function constants
 #define HRNLIBSSH_GET_FINGERPRINT_HASH                              "ssh_get_fingerprint_hash"
 #define HRNLIBSSH_KEY_FREE                                          "ssh_key_free"
 #define HRNLIBSSH_CLEAN_PUBKEY_HASH                                 "ssh_clean_pubkey_hash"
-//#define HRNLIBSSH_KNOWNHOST_CHECKP                                  "ssh_knownhost_checkp"
-//#define HRNLIBSSH_KNOWNHOST_FREE                                    "ssh_knownhost_free"
-//#define HRNLIBSSH_KNOWNHOST_INIT                                    "ssh_knownhost_init"
-//#define HRNLIBSSH_KNOWNHOST_READFILE                                "ssh_knownhost_readfile"
+#define HRNLIBSSH_SESSION_IS_KNOWN_SERVER                           "ssh_session_is_known_server"
+#define HRNLIBSSH_GET_ERROR                                         "ssh_get_error"
+#define HRNLIBSSH_GET_ERROR_CODE                                    "ssh_get_error_code"
+#define HRNLIBSSH_SESSION_UPDATE_KNOWN_HOSTS                        "ssh_session_update_known_hosts"
+#define HRNLIBSSH_SFTP_NEW                                          "sftp_new"
+#define HRNLIBSSH_SFTP_INIT                                         "sftp_init"
+#define HRNLIBSSH_SFTP_FREE                                         "sftp_free"
+#define HRNLIBSSH_SFTP_GET_ERROR                                    "sftp_get_error"
 //#define HRNLIBSSH_KNOWNHOST_WRITEFILE                               "ssh_knownhost_writefile"
 //#define HRNLIBSSH_SESSION_BLOCK_DIRECTIONS                          "ssh_session_block_directions"
 //#define HRNLIBSSH_SESSION_HANDSHAKE                                 "ssh_session_handshake"
@@ -134,6 +138,7 @@ typedef struct HrnLibSsh
     size_t len;                                                     // libssh_session_hostkey len
     int type;                                                       // libssh_session_hostkey type
     char *errMsg;                                                   // libssh_session_last_error error msg
+    enum ssh_known_hosts_e state;                                        // libssh known host check state
 } HrnLibSsh;
 
 /***********************************************************************************************************************************
