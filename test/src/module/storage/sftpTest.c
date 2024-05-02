@@ -2390,7 +2390,7 @@ testRun(void)
         TEST_ERROR(
             storageSftpNewP(
                 TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
-                .write = true, .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_STRICT),
+                .write = true, .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_STRICT, .knownHosts = strLstNew()),
             ServiceError,
             "unable to get server public key");
 
@@ -2413,7 +2413,7 @@ testRun(void)
         TEST_ERROR(
             storageSftpNewP(
                 TEST_PATH_STR, STRDEF("localhost"), 22, TEST_USER_STR, 5, KEYPRIV, hashTypeSha1, .keyPub = KEYPUB,
-                .write = true, .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_STRICT),
+                .write = true, .hostKeyCheckType = SFTP_STRICT_HOSTKEY_CHECKING_STRICT, .knownHosts = strLstNew()),
             ServiceError,
             "unable to get public key hash");
 
@@ -2431,6 +2431,11 @@ testRun(void)
             {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_OK, .resultZ = "server public key"},
             {.function = HRNLIBSSH_GET_PUBLICKEY_HASH, .resultInt = SSH_OK},
             {.function = HRNLIBSSH_SESSION_IS_KNOWN_SERVER, .resultInt = SSH_KNOWN_HOSTS_CHANGED},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,\"%%d/.ssh/known_hosts2\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[35,\"/etc/ssh/ssh_known_hosts2\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_SESSION_IS_KNOWN_SERVER, .resultInt = SSH_KNOWN_HOSTS_UNKNOWN},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,null]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[35,null]", .resultInt = SSH_OK},
             {.function = NULL}
         });
 
@@ -2476,6 +2481,11 @@ testRun(void)
             {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_OK, .resultZ = "server public key"},
             {.function = HRNLIBSSH_GET_PUBLICKEY_HASH, .resultInt = SSH_OK},
             {.function = HRNLIBSSH_SESSION_IS_KNOWN_SERVER, .resultInt = SSH_KNOWN_HOSTS_ERROR},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,\"%%d/.ssh/known_hosts2\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[35,\"/etc/ssh/ssh_known_hosts2\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_SESSION_IS_KNOWN_SERVER, .resultInt =  SSH_KNOWN_HOSTS_UNKNOWN},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,null]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[35,null]", .resultInt = SSH_OK},
             {.function = HRNLIBSSH_GET_ERROR, .resultZ = "known hosts error"},
             {.function = NULL}
         });
@@ -2622,11 +2632,7 @@ testRun(void)
             {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
             {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_OK, .resultZ = "server public key"},
             {.function = HRNLIBSSH_GET_PUBLICKEY_HASH, .resultInt = SSH_OK},
-            {.function = HRNLIBSSH_OPTIONS_GET, .resultInt = SSH_OK, .resultZ = "~/.ssh/known_hosts"},
-            {.function = HRNLIBSSH_OPTIONS_GET, .resultInt = SSH_OK, .resultZ = "/etc/ssh/ssh_known_hosts"},
             {.function = HRNLIBSSH_SESSION_IS_KNOWN_SERVER, .resultInt = SSH_KNOWN_HOSTS_OK},
-            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,\"~/.ssh/known_hosts\"]", .resultInt = SSH_OK},
-            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[35,\"/etc/ssh/ssh_known_hosts\"]", .resultInt = SSH_OK},
             {.function = HRNLIBSSH_SFTP_NEW, .resultNull = false},
             {.function = HRNLIBSSH_SFTP_INIT, .resultInt = SSH_OK},
             {.function = NULL}
@@ -2636,14 +2642,12 @@ testRun(void)
         hrnCfgArgRawZ(argList, cfgOptStanza, "test");
         hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
         hrnCfgArgRawZ(argList, cfgOptRepo, "1");
-        hrnCfgArgRawZ(argList, cfgOptRepoPath, "/tmp");
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
         hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "localhost");
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha256");
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
-        hrnCfgArgRawZ(argList, cfgOptRepoSftpKnownHost, "~/.ssh/known_hosts");
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "strict");
         HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
@@ -2662,13 +2666,13 @@ testRun(void)
                 .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
                 .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
             "new storage (defaults)");
-        TEST_RESULT_STR_Z(storageTest->path, "/tmp", "check path");
+        TEST_RESULT_STR_Z(storageTest->path, "/var/lib/pgbackrest", "check path");
         TEST_RESULT_INT(storageTest->modeFile, 0640, "check file mode");
         TEST_RESULT_INT(storageTest->modePath, 0750, "check path mode");
         TEST_RESULT_BOOL(storageTest->write, false, "check write");
-        TEST_RESULT_STR_Z(
-            strLstGet(strLstNewVarLst(cfgOptionLst(cfgOptRepoSftpKnownHost)), 0), "~/.ssh/known_hosts",
-            "check known hosts path");
+ //       TEST_RESULT_STR_Z(
+ //           strLstGet(strLstNewVarLst(cfgOptionLst(cfgOptRepoSftpKnownHost)), 0), "~/.ssh/known_hosts",
+ //           "check known hosts path");
         TEST_RESULT_BOOL(storageTest->pathExpressionFunction == NULL, true, "check expression function is not set");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
@@ -2686,14 +2690,16 @@ testRun(void)
             {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
             {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_OK, .resultZ = "server public key"},
             {.function = HRNLIBSSH_GET_PUBLICKEY_HASH, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,\"/home/" TEST_USER "/.ssh/known_hosts\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_SESSION_IS_KNOWN_SERVER, .resultInt = SSH_KNOWN_HOSTS_UNKNOWN},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,\"/home/" TEST_USER "/.ssh/pgbackrest_known_hosts\"]",
+             .resultInt = SSH_OK},
             {.function = HRNLIBSSH_SESSION_IS_KNOWN_SERVER, .resultInt = SSH_KNOWN_HOSTS_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,null]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[35,null]", .resultInt = SSH_OK},
             {.function = HRNLIBSSH_SFTP_NEW, .resultNull = false},
             {.function = HRNLIBSSH_SFTP_INIT, .resultInt = SSH_OK},
             {.function = NULL}
-//            {.function = HRNLIBSSH_SESSION_IS_KNOWN_SERVER, .resultInt = SSH_KNOWN_HOSTS_OK},
-//            {.function = HRNLIBSSH_SFTP_NEW, .resultNull = false},
-//            {.function = HRNLIBSSH_SFTP_INIT, .resultInt = SSH_OK},
-//            {.function = NULL}
         });
 
         argList = strLstNew();
@@ -2709,6 +2715,8 @@ testRun(void)
         hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
         hrnCfgEnvKeyRawZ(cfgOptRepoSftpPrivateKeyPassphrase, 1, "keyPassphrase");
         hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpKnownHost, "~/.ssh/known_hosts");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpKnownHost, "~/.ssh/pgbackrest_known_hosts");
         HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
 
         storageTest = NULL;
@@ -2732,6 +2740,12 @@ testRun(void)
         TEST_RESULT_INT(storageTest->modePath, 0700, "check path mode");
         TEST_RESULT_BOOL(storageTest->write, true, "check write");
         TEST_RESULT_BOOL(storageTest->pathExpressionFunction == NULL, true, "check expression function is empty");
+        TEST_RESULT_STR_Z(
+            strLstGet(strLstNewVarLst(cfgOptionLst(cfgOptRepoSftpKnownHost)), 0), "~/.ssh/known_hosts",
+            "check known hosts path");
+        TEST_RESULT_STR_Z(
+            strLstGet(strLstNewVarLst(cfgOptionLst(cfgOptRepoSftpKnownHost)), 1), "~/.ssh/pgbackrest_known_hosts",
+            "check pgbackrest known hosts path");
 
         TEST_RESULT_PTR(storageInterface(storageTest).info, storageTest->pub.interface.info, "check interface");
         TEST_RESULT_PTR(storageDriver(storageTest), storageTest->pub.driver, "check driver");
@@ -2739,6 +2753,239 @@ testRun(void)
         TEST_RESULT_BOOL(storageFeature(storageTest, storageFeaturePath), true, "check path feature");
 
         memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("sftp init - non defaults - success - update known hosts");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_OK, .resultZ = "server public key"},
+            {.function = HRNLIBSSH_GET_PUBLICKEY_HASH, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,\"/home/" TEST_USER "/.ssh/known_hosts\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_SESSION_IS_KNOWN_SERVER, .resultInt = SSH_KNOWN_HOSTS_UNKNOWN},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,\"/home/" TEST_USER "/.ssh/pgbackrest_known_hosts\"]",
+             .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_SESSION_IS_KNOWN_SERVER, .resultInt = SSH_KNOWN_HOSTS_UNKNOWN},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,null]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[35,null]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_SESSION_UPDATE_KNOWN_HOSTS, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_SFTP_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_SFTP_INIT, .resultInt = SSH_OK},
+            {.function = NULL}
+        });
+
+        argList = strLstNew();
+        hrnCfgArgRawZ(argList, cfgOptStanza, "test");
+        hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
+        hrnCfgArgRawZ(argList, cfgOptRepo, "1");
+        hrnCfgArgRawZ(argList, cfgOptRepoPath, "/path/to");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
+        hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "localhost");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
+        hrnCfgEnvKeyRawZ(cfgOptRepoSftpPrivateKeyPassphrase, 1, "keyPassphrase");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpKnownHost, "~/.ssh/known_hosts");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpKnownHost, "~/.ssh/pgbackrest_known_hosts");
+        HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
+
+        storageTest = NULL;
+
+        TEST_ASSIGN(
+            storageTest,
+            storageSftpNewP(
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), cfgOptionIdxStr(cfgOptRepoSftpPrivateKeyFile, repoIdx),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = 0600,
+                .modePath = 0700, .write = true, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
+            "new storage (non-default)");
+        TEST_RESULT_LOG(
+            "P00   WARN: host 'localhost' not found in known hosts files, attempting to add host to '~/.ssh/known_hosts'");
+
+        memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("sftp init - non defaults - success - update known hosts failure");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_OK, .resultZ = "server public key"},
+            {.function = HRNLIBSSH_GET_PUBLICKEY_HASH, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,\"/home/" TEST_USER "/.ssh/known_hosts\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_SESSION_IS_KNOWN_SERVER, .resultInt = SSH_KNOWN_HOSTS_UNKNOWN},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,\"/home/" TEST_USER "/.ssh/pgbackrest_known_hosts\"]",
+             .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_SESSION_IS_KNOWN_SERVER, .resultInt = SSH_KNOWN_HOSTS_UNKNOWN},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,null]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[35,null]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_SESSION_UPDATE_KNOWN_HOSTS, .resultInt = SSH_ERROR},
+            {.function = HRNLIBSSH_GET_ERROR, .resultZ = "Can't find a known_hosts file"},
+            {.function = HRNLIBSSH_SFTP_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_SFTP_INIT, .resultInt = SSH_OK},
+            {.function = NULL}
+        });
+
+        argList = strLstNew();
+        hrnCfgArgRawZ(argList, cfgOptStanza, "test");
+        hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
+        hrnCfgArgRawZ(argList, cfgOptRepo, "1");
+        hrnCfgArgRawZ(argList, cfgOptRepoPath, "/path/to");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
+        hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "localhost");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
+        hrnCfgEnvKeyRawZ(cfgOptRepoSftpPrivateKeyPassphrase, 1, "keyPassphrase");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpKnownHost, "~/.ssh/known_hosts");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpKnownHost, "~/.ssh/pgbackrest_known_hosts");
+        HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
+
+        storageTest = NULL;
+
+        TEST_ASSIGN(
+            storageTest,
+            storageSftpNewP(
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), cfgOptionIdxStr(cfgOptRepoSftpPrivateKeyFile, repoIdx),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = 0600,
+                .modePath = 0700, .write = true, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
+            "new storage (non-default)");
+        TEST_RESULT_LOG(
+            "P00   WARN: host 'localhost' not found in known hosts files, attempting to add host to '~/.ssh/known_hosts'\n"
+            "P00   WARN: ssh_session_update_known_hosts failed for: 'localhost': Can't find a known_hosts file: state [0]: check "
+            "type [accept-new]");
+
+        memContextFree(objMemContext((StorageSftp *)storageDriver(storageTest)));
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("sftp init - non defaults - accept-new - SSH_KNOWN_HOSTS_CHANGED");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_OK, .resultZ = "server public key"},
+            {.function = HRNLIBSSH_GET_PUBLICKEY_HASH, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_SESSION_IS_KNOWN_SERVER, .resultInt = SSH_KNOWN_HOSTS_CHANGED},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,\"%%d/.ssh/known_hosts2\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[35,\"/etc/ssh/ssh_known_hosts2\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_SESSION_IS_KNOWN_SERVER, .resultInt = SSH_KNOWN_HOSTS_CHANGED},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,null]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[35,null]", .resultInt = SSH_OK},
+//            {.function = HRNLIBSSH_GET_ERROR, .resultZ = "Can't find a known_hosts file"},
+//            {.function = HRNLIBSSH_SFTP_NEW, .resultNull = false},
+//            {.function = HRNLIBSSH_SFTP_INIT, .resultInt = SSH_OK},
+            {.function = NULL}
+        });
+
+        argList = strLstNew();
+        hrnCfgArgRawZ(argList, cfgOptStanza, "test");
+        hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
+        hrnCfgArgRawZ(argList, cfgOptRepo, "1");
+        hrnCfgArgRawZ(argList, cfgOptRepoPath, "/path/to");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
+        hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "localhost");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
+        hrnCfgEnvKeyRawZ(cfgOptRepoSftpPrivateKeyPassphrase, 1, "keyPassphrase");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
+        HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
+
+        TEST_ERROR(
+            storageSftpNewP(
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), cfgOptionIdxStr(cfgOptRepoSftpPrivateKeyFile, repoIdx),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = 0600,
+                .modePath = 0700, .write = true, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
+            ServiceError,
+            "known hosts failure: 'localhost': mismatch in known hosts files: SSH_KNOWN_HOSTS_CHANGED [2]: check type [accept-new]"
+            );
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("sftp init - non defaults - success - accept-new - ssh_options_set SSH_OPTIONS_KNOWNHOSTS failure");
+
+        hrnLibSshScriptSet((HrnLibSsh [])
+        {
+            {.function = HRNLIBSSH_NEW, .resultNull = false},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[3,1163581]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[4,\"" TEST_USER "\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[0,\"localhost\"]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[1,22]", .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_CONNECT, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_GET_SERVER_PUBLICKEY, .resultInt = SSH_OK, .resultZ = "server public key"},
+            {.function = HRNLIBSSH_GET_PUBLICKEY_HASH, .resultInt = SSH_OK},
+            {.function = HRNLIBSSH_OPTIONS_SET, .param = "[8,\"/home/rthompso/.ssh/pgbackrest_known_hosts\"]",
+             .resultInt = SSH_ERROR},
+            {.function = HRNLIBSSH_GET_ERROR, .resultZ = "ssh_options_set: Out of memory"},
+            {.function = NULL}
+        });
+
+        argList = strLstNew();
+        hrnCfgArgRawZ(argList, cfgOptStanza, "test");
+        hrnCfgArgRawZ(argList, cfgOptPgPath, "/path/to/pg");
+        hrnCfgArgRawZ(argList, cfgOptRepo, "1");
+        hrnCfgArgRawZ(argList, cfgOptRepoPath, "/path/to");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostUser, TEST_USER);
+        hrnCfgArgRawZ(argList, cfgOptRepoType, "sftp");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHost, "localhost");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyHashType, "sha1");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPrivateKeyFile, KEYPRIV_CSTR);
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpPublicKeyFile, KEYPUB_CSTR);
+        hrnCfgEnvKeyRawZ(cfgOptRepoSftpPrivateKeyPassphrase, 1, "keyPassphrase");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpHostKeyCheckType, "accept-new");
+        hrnCfgArgRawZ(argList, cfgOptRepoSftpKnownHost, "~/.ssh/pgbackrest_known_hosts");
+        HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
+
+        TEST_ERROR(
+            storageSftpNewP(
+                cfgOptionIdxStr(cfgOptRepoPath, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHost, repoIdx),
+                cfgOptionIdxUInt(cfgOptRepoSftpHostPort, repoIdx), cfgOptionIdxStr(cfgOptRepoSftpHostUser, repoIdx),
+                cfgOptionUInt64(cfgOptIoTimeout), cfgOptionIdxStr(cfgOptRepoSftpPrivateKeyFile, repoIdx),
+                cfgOptionIdxStrId(cfgOptRepoSftpHostKeyHashType, repoIdx), .modeFile = 0600,
+                .modePath = 0700, .write = true, .keyPub = cfgOptionIdxStrNull(cfgOptRepoSftpPublicKeyFile, repoIdx),
+                .keyPassphrase = cfgOptionIdxStrNull(cfgOptRepoSftpPrivateKeyPassphrase, repoIdx),
+                .hostFingerprint = cfgOptionIdxStrNull(cfgOptRepoSftpHostFingerprint, repoIdx),
+                .hostKeyCheckType = cfgOptionIdxStrId(cfgOptRepoSftpHostKeyCheckType, repoIdx),
+                .knownHosts = strLstNewVarLst(cfgOptionIdxLst(cfgOptRepoSftpKnownHost, repoIdx))),
+            ServiceError,
+            "unable to set known hosts file: ssh_options_set: Out of memory");
 
 #else
         TEST_LOG(PROJECT_NAME " not built with sftp support");

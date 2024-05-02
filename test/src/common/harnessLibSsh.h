@@ -54,7 +54,7 @@ Function constants
 #define HRNLIBSSH_SFTP_INIT                                         "sftp_init"
 #define HRNLIBSSH_SFTP_FREE                                         "sftp_free"
 #define HRNLIBSSH_SFTP_GET_ERROR                                    "sftp_get_error"
-//#define HRNLIBSSH_KNOWNHOST_WRITEFILE                               "ssh_knownhost_writefile"
+#define HRNLIBSSH_SESSION_UPDATE_KNOWN_HOSTS                        "ssh_session_update_known_hosts"
 //#define HRNLIBSSH_SESSION_BLOCK_DIRECTIONS                          "ssh_session_block_directions"
 //#define HRNLIBSSH_SESSION_HANDSHAKE                                 "ssh_session_handshake"
 //#define HRNLIBSSH_SESSION_HOSTKEY                                   "ssh_session_hostkey"

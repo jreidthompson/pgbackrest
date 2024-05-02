@@ -48,6 +48,7 @@ storageSftpKnownHostCheckpFailureMsg(const enum ssh_known_hosts_e state, const s
 {
     FUNCTION_TEST_BEGIN();
         FUNCTION_TEST_PARAM(ENUM, state);
+        FUNCTION_TEST_PARAM_P(VOID, session);
     FUNCTION_TEST_END();
 
     const char *result;
@@ -83,12 +84,51 @@ storageSftpKnownHostCheckpFailureMsg(const enum ssh_known_hosts_e state, const s
 }
 
 /***********************************************************************************************************************************
+Build known hosts file list. If knownHosts is empty build the default file list, otherwise build the list provided. knownHosts
+requires full path and/or leading tilde path entries.
+***********************************************************************************************************************************/
+static StringList *
+storageSftpKnownHostsFilesList(const StringList *const knownHosts)
+{
+    FUNCTION_LOG_BEGIN(logLevelDebug);
+        FUNCTION_LOG_PARAM(STRING_LIST, knownHosts);
+    FUNCTION_LOG_END();
+
+    StringList *const result = strLstNew();
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+            // Process the known host list entries and add them to the result list
+            for (unsigned int listIdx = 0; listIdx < strLstSize(knownHosts); listIdx++)
+            {
+                // Get the trimmed file path and add it to the result list
+                const String *const filePath = strTrim(strLstGet(knownHosts, listIdx));
+
+                if (strBeginsWithZ(filePath, "~/"))
+                {
+                    // Replace leading tilde with space, trim space, prepend user home path and add to the result list
+                    strLstAddFmt(
+                        result, "%s%s", strZ(userHome()), strZ(strTrim(strSub(filePath, (size_t)strChr(filePath, '~') + 1))));
+                }
+                else
+                    strLstAdd(result, filePath);
+            }
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    FUNCTION_LOG_RETURN(STRING_LIST, result);
+}
+
+/***********************************************************************************************************************************
 Attempt to verify the host key using libssh default known hosts files (~/.ssh/known_hosts and /etc/ssh/ssh_known_hosts)
 ***********************************************************************************************************************************/
 int verify_knownhost(ssh_session session, const StringList *const knownHosts, StringId hostKeyCheckType, const String *const host)
 {
     FUNCTION_TEST_BEGIN();
         FUNCTION_TEST_PARAM_P(VOID, session);
+        FUNCTION_TEST_PARAM(STRING_LIST, knownHosts);
+        FUNCTION_TEST_PARAM(STRING_ID, hostKeyCheckType);
+        FUNCTION_TEST_PARAM(STRING, host);
     FUNCTION_TEST_END();
 
     ASSERT(session != NULL);
@@ -119,91 +159,151 @@ int verify_knownhost(ssh_session session, const StringList *const knownHosts, St
         THROW_FMT(ServiceError, "unable to get public key hash");
     }
 
+//    // Capture the default known hosts file paths
+//    char *defaultKnownHostsFile;
+//    char *defaultGlobalKnownHostsFile;
+//
+//    if (ssh_options_get(session, SSH_OPTIONS_KNOWNHOSTS, &defaultKnownHostsFile) != SSH_OK)
+//        THROW_FMT(ServiceError, "unable to get default known hosts file: %s", ssh_get_error(session));
+//
+//    const String *const defaultKnownHostsFileStr = strNewZ(defaultKnownHostsFile);
+//
+//    if (ssh_options_get(session, SSH_OPTIONS_GLOBAL_KNOWNHOSTS, &defaultGlobalKnownHostsFile) != SSH_OK)
+//        THROW_FMT(ServiceError, "unable to get default global known hosts file: %s", ssh_get_error(session));
+//
+//    const String *const defaultGlobalKnownHostsFileStr = strNewZ(defaultGlobalKnownHostsFile);
+
+    // Flag to restore the default known hosts files if we overwrite them
+    bool restoreDefaultKNownHosts = false;
+
     if (strLstEmpty(knownHosts))
     {
+        enum ssh_known_hosts_e old_state;
+
+        // Check default known hosts files for known hosts
         LOG_DETAIL_FMT("Check default locations ~/.ssh/known_hosts and /etc/ssh/ssh_known_hosts for known hosts: '%s'", strZ(host));
-        state = ssh_session_is_known_server(session);
-    }
-    else // check provided file list for known hosts
-    {
-        MEM_CONTEXT_TEMP_BEGIN()
+
+        old_state = state = ssh_session_is_known_server(session);
+
+        LOG_DETAIL_FMT("Primary known hosts files state: '%d'", state);
+
+        if (state != SSH_KNOWN_HOSTS_OK)
         {
-            // Capture the default known hosts file paths
-            char *defaultKnownHostsFile;
-            char *defaultGlobalKnownHostsFile;
+            restoreDefaultKNownHosts = true;
 
-            if (ssh_options_get(session, SSH_OPTIONS_KNOWNHOSTS, &defaultKnownHostsFile) != SSH_OK)
-                THROW_FMT(ServiceError, "unable to get default known hosts file: %s", ssh_get_error(session));
+            LOG_DETAIL_FMT(
+                "Check default locations ~/.ssh/known_hosts2 and /etc/ssh/ssh_known_hosts2 for known hosts: '%s'", strZ(host));
 
-            const String *const defaultKnownHostsFileStr = strNewZ(defaultKnownHostsFile);
+            // Check the secondary set of default known hosts files
+            if (ssh_options_set(session, SSH_OPTIONS_KNOWNHOSTS, "%%d/.ssh/known_hosts2") != SSH_OK)
+                THROW_FMT(ServiceError, "unable to set '~/.ssh/known_hosts2' known hosts file: %s", ssh_get_error(session));
 
-            if (ssh_options_get(session, SSH_OPTIONS_GLOBAL_KNOWNHOSTS, &defaultGlobalKnownHostsFile) != SSH_OK)
-                THROW_FMT(ServiceError, "unable to get default global known hosts file: %s", ssh_get_error(session));
-
-            const String *const defaultGlobalKnownHostsFileStr = strNewZ(defaultGlobalKnownHostsFile);
-
-start back here
-            // jrt - loop through known hosts list checking each for a verified host key by overriding the default known hosts and
-            // global known hosts files with the provided list
-
-
+            if (ssh_options_set(session, SSH_OPTIONS_GLOBAL_KNOWNHOSTS, "/etc/ssh/ssh_known_hosts2") != SSH_OK)
+                THROW_FMT(ServiceError, "unable to set '/etc/ssh/ssh_known_hosts2' known hosts file: %s", ssh_get_error(session));
 
             state = ssh_session_is_known_server(session);
 
-            // Restore the local and global known hosts file to the defaults
-            if (ssh_options_set(session, SSH_OPTIONS_KNOWNHOSTS, strZ(defaultKnownHostsFileStr)) != SSH_OK)
-                THROW_FMT(ServiceError, "unable to reset default known hosts file: %s", ssh_get_error(session));
+            LOG_DETAIL_FMT("Secondary known hosts files state: '%d'", state);
 
-            if (ssh_options_set(session, SSH_OPTIONS_GLOBAL_KNOWNHOSTS, strZ(defaultGlobalKnownHostsFileStr)) != SSH_OK)
-                THROW_FMT(ServiceError, "unable to reset default known hosts file: %s", ssh_get_error(session));
+            // If host is unknown or the hosts file does not exist then restore the original state otherwise return the new state
+            if (state == SSH_KNOWN_HOSTS_UNKNOWN || state == SSH_KNOWN_HOSTS_NOT_FOUND)
+                state = old_state;
+        }
+    }
+    else
+    {
+        restoreDefaultKNownHosts = true;
+
+        // Check for a verified host key by overriding the default known hosts file with those in the provided list
+
+        MEM_CONTEXT_TEMP_BEGIN()
+        {
+            // Get the list of known host files to search
+            const StringList *const knownHostsPathList = storageSftpKnownHostsFilesList(knownHosts);
+
+            // Loop through the known hosts list checking each for a match
+            for (unsigned int listIdx = 0; listIdx < strLstSize(knownHostsPathList); listIdx++)
+            {
+                const String *const knownHostsPath = strLstGet(knownHostsPathList, listIdx);
+
+                // Set the known hosts file to the current list entry
+                if (ssh_options_set(session, SSH_OPTIONS_KNOWNHOSTS, strZ(knownHostsPath)) != SSH_OK)
+                    THROW_FMT(ServiceError, "unable to set known hosts file: %s", ssh_get_error(session));
+
+                state = ssh_session_is_known_server(session);
+
+                // If a match is found then break out of the loop
+                if (state == SSH_KNOWN_HOSTS_OK)
+                    break;
+
+                LOG_DETAIL_FMT("No match in user provided known hosts file '%s' state: '%d'", strZ(knownHostsPath), state);
+            }
         }
         MEM_CONTEXT_TEMP_END();
     }
 
+    if (restoreDefaultKNownHosts)
+    {
+        // Restore the local and global known hosts file to the defaults
+        if (ssh_options_set(session, SSH_OPTIONS_KNOWNHOSTS, NULL) != SSH_OK)
+            THROW_FMT(ServiceError, "unable to reset default known hosts file: %s", ssh_get_error(session));
+
+        if (ssh_options_set(session, SSH_OPTIONS_GLOBAL_KNOWNHOSTS, NULL) != SSH_OK)
+            THROW_FMT(ServiceError, "unable to reset default global known hosts file: %s", ssh_get_error(session));
+    }
+
     if (state != SSH_KNOWN_HOSTS_OK)
     {
-        // Handle failure to match in a similar manner as ssh_config StrictHostKeyChecking. If this flag is set to
-        // "strict", never automatically add host keys to the ~/.ssh/known_hosts file, and refuse to connect to hosts
-        // whose host key has changed. This option forces the user to manually add all new hosts. If this flag is set to
-        // "accept-new" then automatically add new host keys to the user known hosts files, but do not permit
-        // connections to hosts with changed host keys.
-        switch (hostKeyCheckType)
+        MEM_CONTEXT_TEMP_BEGIN()
         {
-            case SFTP_STRICT_HOSTKEY_CHECKING_STRICT:
-            {
-                // Throw an error when set to strict and we have any result other than match
-                THROW_FMT(
-                    ServiceError, "known hosts failure: '%s' %s [%d]: check type [%s]", strZ(host),
-                    storageSftpKnownHostCheckpFailureMsg(state, session), state, strZ(strIdToStr(hostKeyCheckType)));
-                break;
-            }
+            String *hostKeyCheckTypeStr = strIdToStr(hostKeyCheckType);
 
-            default:
+            // Handle failure to match in a similar manner as ssh_config StrictHostKeyChecking. If this flag is set to
+            // "strict", never automatically add host keys to the ~/.ssh/known_hosts file, and refuse to connect to hosts
+            // whose host key has changed. This option forces the user to manually add all new hosts. If this flag is set to
+            // "accept-new" then automatically add new host keys to the user known hosts files, but do not permit
+            // connections to hosts with changed host keys.
+            switch (hostKeyCheckType)
             {
-                ASSERT(hostKeyCheckType == SFTP_STRICT_HOSTKEY_CHECKING_ACCEPT_NEW);
-
-                // Throw an error when set to accept-new and match fails or mismatches else add the new host key to the
-                // user's known_hosts file
-                if (state == SSH_KNOWN_HOSTS_CHANGED || state == SSH_KNOWN_HOSTS_ERROR)
+                case SFTP_STRICT_HOSTKEY_CHECKING_STRICT:
                 {
+                    // Throw an error when set to strict and we have any result other than match
                     THROW_FMT(
-                        ServiceError, "known hosts failure: '%s': %s [%d]: check type [%s]", strZ(host),
-                        storageSftpKnownHostCheckpFailureMsg(state, session), state,
-                        strZ(strIdToStr(hostKeyCheckType)));
+                        ServiceError, "known hosts failure: '%s' %s [%d]: check type [%s]", strZ(host),
+                        storageSftpKnownHostCheckpFailureMsg(state, session), state, strZ(hostKeyCheckTypeStr));
+                    break;
                 }
-                else
+
+                default:
                 {
-                    // Add the new host key to the user's known_hosts file
-                    if (ssh_session_update_known_hosts(session) != SSH_OK)
+                    ASSERT(hostKeyCheckType == SFTP_STRICT_HOSTKEY_CHECKING_ACCEPT_NEW);
+
+                    // Throw an error when set to accept-new and match fails or mismatches else add the new host key to the
+                    // user's known_hosts file
+                    if (state == SSH_KNOWN_HOSTS_CHANGED || state == SSH_KNOWN_HOSTS_ERROR)
                     {
                         THROW_FMT(
-                            ServiceError, "unable to update known hosts file: '%s': %s [%d]: check type [%s]", strZ(host),
-                            storageSftpKnownHostCheckpFailureMsg(state, session), state, strZ(strIdToStr(hostKeyCheckType)));
+                            ServiceError, "known hosts failure: '%s': %s [%d]: check type [%s]", strZ(host),
+                            storageSftpKnownHostCheckpFailureMsg(state, session), state, strZ(hostKeyCheckTypeStr));
                     }
+                    else
+                    {
+                        LOG_WARN_FMT(
+                            "host '%s' not found in known hosts files, attempting to add host to '~/.ssh/known_hosts'", strZ(host));
+
+                        // Add the new host key to the user's known_hosts file
+                        if (ssh_session_update_known_hosts(session) != SSH_OK)
+                        {
+                            LOG_WARN_FMT(
+                                "ssh_session_update_known_hosts failed for: '%s': %s: state [%d]: check type [%s]", strZ(host),
+                                ssh_get_error(session), state, strZ(hostKeyCheckTypeStr));
+                        }
+                    }
+                    break;
                 }
-                break;
             }
         }
+        MEM_CONTEXT_TEMP_END();
     }
 
 
@@ -508,6 +608,7 @@ storageSftpLibSshSessionFreeResource(THIS_VOID)
         ssh_disconnect(this->session);
         ssh_free(this->session);
     }
+    ssh_finalize();
 
     FUNCTION_LOG_RETURN_VOID();
 }
@@ -696,52 +797,6 @@ storageSftpInfo(THIS_VOID, const String *const file, const StorageInfoLevel leve
     FUNCTION_LOG_RETURN(STORAGE_INFO, result);
 }
 
-///***********************************************************************************************************************************
-//Build known hosts file list. If knownHosts is empty build the default file list, otherwise build the list provided. knownHosts
-//requires full path and/or leading tilde path entries.
-//***********************************************************************************************************************************/
-//static StringList *
-//storageSftpKnownHostsFilesList(const StringList *const knownHosts)
-//{
-//    FUNCTION_LOG_BEGIN(logLevelDebug);
-//        FUNCTION_LOG_PARAM(STRING_LIST, knownHosts);
-//    FUNCTION_LOG_END();
-//
-//    StringList *const result = strLstNew();
-//
-//    MEM_CONTEXT_TEMP_BEGIN()
-//    {
-//        if (strLstEmpty(knownHosts))
-//        {
-//            // Create default file list
-//            strLstAddFmt(result, "%s%s", strZ(userHome()), "/.ssh/known_hosts");
-//            strLstAddFmt(result, "%s%s", strZ(userHome()), "/.ssh/known_hosts2");
-//            strLstAddZ(result, "/etc/ssh/ssh_known_hosts");
-//            strLstAddZ(result, "/etc/ssh/ssh_known_hosts2");
-//        }
-//        else
-//        {
-//            // Process the known host list entries and add them to the result list
-//            for (unsigned int listIdx = 0; listIdx < strLstSize(knownHosts); listIdx++)
-//            {
-//                // Get the trimmed file path and add it to the result list
-//                const String *const filePath = strTrim(strLstGet(knownHosts, listIdx));
-//
-//                if (strBeginsWithZ(filePath, "~/"))
-//                {
-//                    // Replace leading tilde with space, trim space, prepend user home path and add to the result list
-//                    strLstAddFmt(
-//                        result, "%s%s", strZ(userHome()), strZ(strTrim(strSub(filePath, (size_t)strChr(filePath, '~') + 1))));
-//                }
-//                else
-//                    strLstAdd(result, filePath);
-//            }
-//        }
-//    }
-//    MEM_CONTEXT_TEMP_END();
-//
-//    FUNCTION_LOG_RETURN(STRING_LIST, result);
-//}
 
 /**********************************************************************************************************************************/
 //static String *
@@ -1293,6 +1348,8 @@ storageSftpNew(
         // jrt !!! - set non blocking on file after sftp_open()
 
         // Init SSH session
+        ssh_init();
+
         this->session = ssh_new();
         if (this->session == NULL)
             THROW_FMT(ServiceError, "unable to init libssh session");
@@ -1420,6 +1477,7 @@ storageSftpNew(
         }
         else if (param.hostKeyCheckType != SFTP_STRICT_HOSTKEY_CHECKING_NONE)
         {
+//            fprintf(stderr, "jrt strict host checkint %d\n", ((ssh_session)(this->session))->opts.StrictHostKeyChecking);
             if (verify_knownhost(this->session, param.knownHosts, param.hostKeyCheckType, host) < SSH_OK)
             {
                 ssh_disconnect(this->session);
