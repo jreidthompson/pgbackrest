@@ -406,6 +406,7 @@ storageWriteSftpNew(
 
     FUNCTION_LOG_RETURN(STORAGE_WRITE, storageWriteNew(this, &this->interface));
 }
+
 #elif defined(HAVE_LIBSSH)
 void
 storageWriteSftpLibssh2NotSupported(void)

@@ -7,8 +7,8 @@ SFTP Storage Read
 
 #ifdef HAVE_LIBSSH2
 
-#include "common/log.h"
 #include "common/io/session.h"
+#include "common/log.h"
 #include "storage/read.intern.h"
 #include "storage/sftp/read.h"
 
@@ -294,6 +294,7 @@ storageReadSftpNew(
 
     FUNCTION_LOG_RETURN(STORAGE_READ, storageReadNew(this, &this->interface));
 }
+
 #elif defined(HAVE_LIBSSH)
 void
 storageReadSftpLibssh2NotSupported(void)

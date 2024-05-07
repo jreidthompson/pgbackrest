@@ -1378,6 +1378,7 @@ storageSftpNew(
             param.modePath == 0 ? STORAGE_MODE_PATH_DEFAULT : param.modePath, param.write, param.pathExpressionFunction,
             this, this->interface));
 }
+
 #elif defined(HAVE_LIBSSH)
 void
 storageSftpLibssh2NotSupported(void)
