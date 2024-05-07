@@ -3,11 +3,12 @@ SFTP Storage Read
 ***********************************************************************************************************************************/
 #include "build.auto.h"
 
+#include "common/debug.h"
+
 #ifdef HAVE_LIBSSH2
 
-#include "common/debug.h"
-#include "common/io/session.h"
 #include "common/log.h"
+#include "common/io/session.h"
 #include "storage/read.intern.h"
 #include "storage/sftp/read.h"
 
@@ -292,6 +293,12 @@ storageReadSftpNew(
     OBJ_NEW_END();
 
     FUNCTION_LOG_RETURN(STORAGE_READ, storageReadNew(this, &this->interface));
+}
+#elif defined(HAVE_LIBSSH)
+void
+storageReadSftpLibssh2NotSupported(void)
+{
+    THROW(FeatureNotSupportedError, "SFTP storage is not supported: SSH is not compiled with libssh2 support");
 }
 
 #endif // HAVE_LIBSSH2

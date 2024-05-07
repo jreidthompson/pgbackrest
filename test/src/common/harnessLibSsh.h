@@ -25,6 +25,11 @@ libssh authorization constants
 #define KEYPUB                                                      STRDEF("/home/" TEST_USER "/.ssh/id_rsa.pub")
 #define KEYPRIV_CSTR                                                "/home/" TEST_USER "/.ssh/id_rsa"
 #define KEYPUB_CSTR                                                 "/home/" TEST_USER "/.ssh/id_rsa.pub"
+#define TILDE_KEYPRIV                                               STRDEF("~/.ssh/id_rsa")
+#define TILDE_KEYPUB                                                STRDEF("~/.ssh/id_rsa.pub")
+#define TILDE_KEYPRIV_CSTR                                          "~/.ssh/id_rsa"
+#define TILDE_KEYPUB_CSTR                                           "~/.ssh/id_rsa.pub"
+#define KNOWNHOSTS_FILE_CSTR                                        "/home/" TEST_USER "/.ssh/known_hosts"
 #define KNOWNHOSTS_FILE_CSTR                                        "/home/" TEST_USER "/.ssh/known_hosts"
 #define KNOWNHOSTS2_FILE_CSTR                                       "/home/" TEST_USER "/.ssh/known_hosts2"
 #define ETC_KNOWNHOSTS_FILE_CSTR                                    "/etc/ssh/ssh_known_hosts"
@@ -55,6 +60,11 @@ Function constants
 #define HRNLIBSSH_SFTP_FREE                                         "sftp_free"
 #define HRNLIBSSH_SFTP_GET_ERROR                                    "sftp_get_error"
 #define HRNLIBSSH_SESSION_UPDATE_KNOWN_HOSTS                        "ssh_session_update_known_hosts"
+#define HRNLIBSSH_GET_POLL_FLAGS                                    "ssh_get_poll_flags"
+#define HRNLIBSSH_USERAUTH_TRY_PUBLICKEY                            "ssh_userauth_try_publickey"
+#define HRNLIBSSH_USERAUTH_PUBLICKEY                                "ssh_userauth_publickey"
+#define HRNLIBSSH_PKI_IMPORT_PUBKEY_FILE                            "ssh_pki_import_pubkey_file"
+#define HRNLIBSSH_PKI_IMPORT_PRIVKEY_FILE                           "ssh_pki_import_privkey_file"
 //#define HRNLIBSSH_SESSION_BLOCK_DIRECTIONS                          "ssh_session_block_directions"
 //#define HRNLIBSSH_SESSION_HANDSHAKE                                 "ssh_session_handshake"
 //#define HRNLIBSSH_SESSION_HOSTKEY                                   "ssh_session_hostkey"

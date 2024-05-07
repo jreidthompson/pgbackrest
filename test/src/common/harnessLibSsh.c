@@ -7,6 +7,7 @@ libssh Test Harness
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "common/type/json.h"
 #include "common/type/string.h"
@@ -162,8 +163,6 @@ ssh_new()
 {
     HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_NEW, NULL, NULL);
 
-//    return hrnLibSshScriptRun(HRNLIBSSH_INIT, NULL, (HrnLibSsh *)session)->resultInt;
-//    return hrnLibSsh->resultInt;
     return hrnLibSsh->resultNull ? NULL : (ssh_session)hrnLibSsh;
 }
 
@@ -182,14 +181,6 @@ ssh_free(ssh_session session)
             "libssh script function 'ssh_free', expects session to be not NULL");
         THROW(AssertError, hrnLibSshScriptError);
     }
-
-//    if (hrnLibSsh->resultInt != SSH_OK)
-//    {
-//        snprintf(
-//            hrnLibSshScriptError, sizeof(hrnLibSshScriptError),
-//            "libssh script function 'ssh_free', expects resultInt to be SSH_OK");
-//        THROW(AssertError, hrnLibSshScriptError);
-//    }
 }
 
 /***********************************************************************************************************************************
@@ -199,7 +190,6 @@ int
 ssh_options_set(ssh_session session, enum ssh_options_e type, const void *value)
 {
     HrnLibSsh *hrnLibSsh = NULL;
-    //(void)value;
 
     MEM_CONTEXT_TEMP_BEGIN()
     {
@@ -264,7 +254,6 @@ ssh_options_get(ssh_session session, enum ssh_options_e type, char **value)
     }
 
     return hrnLibSsh->resultInt;
-
 }
 
 /***********************************************************************************************************************************
@@ -273,9 +262,10 @@ Shim for ssh_connect
 int
 ssh_connect(ssh_session session)
 {
-    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_CONNECT, NULL, (HrnLibSsh *)session);
+//    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_CONNECT, NULL, (HrnLibSsh *)session);
 
-    return hrnLibSsh->resultInt;
+//    return hrnLibSsh->resultInt;
+    return hrnLibSshScriptRun(HRNLIBSSH_CONNECT, NULL, (HrnLibSsh *)session)->resultInt;
 }
 
 /***********************************************************************************************************************************
@@ -354,8 +344,15 @@ ssh_get_fingerprint_hash(enum ssh_publickey_hash_type type, unsigned char *hash,
     (void) len;
 
     HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_GET_FINGERPRINT_HASH, NULL, NULL);
+   
+    char *fingerprint = NULL;;
+    if (!hrnLibSsh->resultNull)
+    {
+        fingerprint = malloc(512);
+        strcpy(fingerprint, hrnLibSsh->resultZ);
+    }
 
-    return hrnLibSsh->resultNull ? NULL : (char *)hrnLibSsh->resultZ;
+    return hrnLibSsh->resultNull ? NULL : fingerprint;
 }
 
 /***********************************************************************************************************************************
@@ -465,7 +462,97 @@ sftp_get_error(sftp_session sftpSession)
     return hrnLibSsh->resultInt;
 }
 
+/***********************************************************************************************************************************
+Shim for ssh_get_poll_flags
+***********************************************************************************************************************************/
+int
+ssh_get_poll_flags(ssh_session sshSession)
+{
+    return hrnLibSshScriptRun(HRNLIBSSH_GET_POLL_FLAGS, NULL, (HrnLibSsh *)sshSession)->resultInt;
+}
 
+/***********************************************************************************************************************************
+Shim for ssh_userauth_try_publickey
+***********************************************************************************************************************************/
+int
+ssh_userauth_try_publickey(ssh_session session, const char *username, ssh_key pubkey)
+{
+    HrnLibSsh *hrnLibSsh = NULL;
+
+    // Avoid compiler complaining of unused param
+    (void) pubkey;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        hrnLibSsh = hrnLibSshScriptRun(
+            HRNLIBSSH_USERAUTH_TRY_PUBLICKEY,
+            varLstAdd(
+                varLstNew(), varNewStrZ(username)),
+            (HrnLibSsh *)session);
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_userauth_publickey
+***********************************************************************************************************************************/
+int
+ssh_userauth_publickey(ssh_session session, const char *username, ssh_key privkey)
+{
+    HrnLibSsh *hrnLibSsh = NULL;
+
+    // Avoid compiler complaining of unused param
+    (void) privkey;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        hrnLibSsh = hrnLibSshScriptRun(
+            HRNLIBSSH_USERAUTH_PUBLICKEY,
+            varLstAdd(
+                varLstNew(), varNewStrZ(username)),
+            (HrnLibSsh *)session);
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_pki_import_pubkey_file
+***********************************************************************************************************************************/
+int
+ssh_pki_import_pubkey_file(const char *filename, ssh_key *key)
+{
+    (void)filename; // Avoid compiler complaining of unused param
+
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_PKI_IMPORT_PUBKEY_FILE, NULL, NULL);
+
+    // Hack the key
+    *(key) = (ssh_key)hrnLibSsh->resultZ;
+
+    return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_pki_import_privkey_file
+***********************************************************************************************************************************/
+int
+ssh_pki_import_privkey_file(const char *filename, const char *passphrase, ssh_auth_callback authCb, void *authCbData, ssh_key *key)
+{
+    (void)filename; // Avoid compiler complaining of unused param
+    (void)passphrase;
+    (void)authCb;
+    (void)authCbData;
+
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_PKI_IMPORT_PRIVKEY_FILE, NULL, NULL);
+
+    // Hack the key
+    *(key) = (ssh_key)hrnLibSsh->resultZ;
+
+    return hrnLibSsh->resultInt;
+}
 
 ///***********************************************************************************************************************************
 //Shim for ssh_knownhost_addc

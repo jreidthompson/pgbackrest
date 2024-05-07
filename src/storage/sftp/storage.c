@@ -3,10 +3,11 @@ SFTP Storage
 ***********************************************************************************************************************************/
 #include "build.auto.h"
 
+#include "common/debug.h"
+
 #ifdef HAVE_LIBSSH2
 
 #include "common/crypto/hash.h"
-#include "common/debug.h"
 #include "common/io/fd.h"
 #include "common/io/socket/client.h"
 #include "common/log.h"
@@ -1376,6 +1377,12 @@ storageSftpNew(
             STORAGE_SFTP_TYPE, path, param.modeFile == 0 ? STORAGE_MODE_FILE_DEFAULT : param.modeFile,
             param.modePath == 0 ? STORAGE_MODE_PATH_DEFAULT : param.modePath, param.write, param.pathExpressionFunction,
             this, this->interface));
+}
+#elif defined(HAVE_LIBSSH)
+void
+storageSftpLibssh2NotSupported(void)
+{
+    THROW(FeatureNotSupportedError, "SFTP storage is not supported: SSH is not compiled with libssh2 support");
 }
 
 #endif // HAVE_LIBSSH2

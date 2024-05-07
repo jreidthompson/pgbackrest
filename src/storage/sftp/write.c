@@ -3,9 +3,10 @@ SFTP Storage File Write
 ***********************************************************************************************************************************/
 #include "build.auto.h"
 
+#include "common/debug.h"
+
 #ifdef HAVE_LIBSSH2
 
-#include "common/debug.h"
 #include "common/log.h"
 #include "common/user.h"
 #include "storage/sftp/write.h"
@@ -404,6 +405,12 @@ storageWriteSftpNew(
     OBJ_NEW_END();
 
     FUNCTION_LOG_RETURN(STORAGE_WRITE, storageWriteNew(this, &this->interface));
+}
+#elif defined(HAVE_LIBSSH)
+void
+storageWriteSftpLibssh2NotSupported(void)
+{
+    THROW(FeatureNotSupportedError, "SFTP storage is not supported: SSH is not compiled with libssh2 support");
 }
 
 #endif // HAVE_LIBSSH2
