@@ -544,7 +544,6 @@ storagePath(const Storage *this, const String *pathExp, StoragePathParam param)
                     THROW_FMT(AssertError, "absolute path '%s' is not in base path '%s'", strZ(pathExp), strZ(this->path));
                 }
             }
-
             result = strDup(pathExp);
         }
         // Else path expression is relative so combine it with the base storage path

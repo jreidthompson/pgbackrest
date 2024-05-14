@@ -31,7 +31,6 @@ struct StorageSftp
 {
     STORAGE_COMMON_MEMBER;
 
-    // jrt - does ssh use these as pointers
     IoSession *ioSession;                                           // IoSession (socket) connection to SFTP server
     ssh_session session;                                            // Libssh session
     sftp_session sftpSession;                                       // LibSsh session sftp session
@@ -78,9 +77,8 @@ storageSftpLibSshSessionFreeResource(THIS_VOID)
         }
     }
 
-    // Free the sftp session
-    if (this->sftpSession != NULL)
-        sftp_free(this->sftpSession);                               // This function returns void
+    // Free the sftp session - this is safe to do even if sftpSession is NULL. This function returns void
+    sftp_free(this->sftpSession);
 
     // Free the ssh session
     if (this->session != NULL)
@@ -94,6 +92,8 @@ storageSftpLibSshSessionFreeResource(THIS_VOID)
 
         // Close the session and free the session - these functions return void
         ssh_disconnect(this->session);
+
+        // Free the ssh session - this is safe to do even if session is NULL. This function returns void
         ssh_free(this->session);
     }
 
@@ -206,6 +206,8 @@ verify_knownhost(ssh_session session, const StringList *const knownHosts, String
     if (rc < SSH_OK)
     {
         ssh_disconnect(session);
+
+        // Free the ssh session - this is safe to do even if session is NULL. This function returns void
         ssh_free(session);
         THROW_FMT(ServiceError, "unable to get server public key");
     }
@@ -215,6 +217,8 @@ verify_knownhost(ssh_session session, const StringList *const knownHosts, String
     if (rc < SSH_OK)
     {
         ssh_disconnect(session);
+
+        // Free the ssh session - this is safe to do even if session is NULL. This function returns void
         ssh_free(session);
         THROW_FMT(ServiceError, "unable to get public key hash");
     }
@@ -244,6 +248,8 @@ verify_knownhost(ssh_session session, const StringList *const knownHosts, String
             if (ssh_options_set(session, SSH_OPTIONS_KNOWNHOSTS, "%%d/.ssh/known_hosts2") != SSH_OK)
             {
                 ssh_disconnect(session);
+
+                // Free the ssh session - this is safe to do even if session is NULL. This function returns void
                 ssh_free(session);
                 THROW_FMT(ServiceError, "unable to set '~/.ssh/known_hosts2' known hosts file: %s", ssh_get_error(session));
             }
@@ -251,6 +257,8 @@ verify_knownhost(ssh_session session, const StringList *const knownHosts, String
             if (ssh_options_set(session, SSH_OPTIONS_GLOBAL_KNOWNHOSTS, "/etc/ssh/ssh_known_hosts2") != SSH_OK)
             {
                 ssh_disconnect(session);
+
+                // Free the ssh session - this is safe to do even if session is NULL. This function returns void
                 ssh_free(session);
                 THROW_FMT(ServiceError, "unable to set '/etc/ssh/ssh_known_hosts2' known hosts file: %s", ssh_get_error(session));
             }
@@ -284,6 +292,8 @@ verify_knownhost(ssh_session session, const StringList *const knownHosts, String
                 if (ssh_options_set(session, SSH_OPTIONS_KNOWNHOSTS, strZ(knownHostsPath)) != SSH_OK)
                 {
                     ssh_disconnect(session);
+
+                    // Free the ssh session - this is safe to do even if session is NULL. This function returns void
                     ssh_free(session);
                     THROW_FMT(ServiceError, "unable to set known hosts file: %s", ssh_get_error(session));
                 }
@@ -306,6 +316,8 @@ verify_knownhost(ssh_session session, const StringList *const knownHosts, String
         if (ssh_options_set(session, SSH_OPTIONS_KNOWNHOSTS, NULL) != SSH_OK)
         {
             ssh_disconnect(session);
+
+            // Free the ssh session - this is safe to do even if session is NULL. This function returns void
             ssh_free(session);
             THROW_FMT(ServiceError, "unable to reset default known hosts file: %s", ssh_get_error(session));
         }
@@ -313,6 +325,8 @@ verify_knownhost(ssh_session session, const StringList *const knownHosts, String
         if (ssh_options_set(session, SSH_OPTIONS_GLOBAL_KNOWNHOSTS, NULL) != SSH_OK)
         {
             ssh_disconnect(session);
+
+            // Free the ssh session - this is safe to do even if session is NULL. This function returns void
             ssh_free(session);
             THROW_FMT(ServiceError, "unable to reset default global known hosts file: %s", ssh_get_error(session));
         }
@@ -334,6 +348,8 @@ verify_knownhost(ssh_session session, const StringList *const knownHosts, String
                 case SFTP_STRICT_HOSTKEY_CHECKING_STRICT:
                 {
                     ssh_disconnect(session);
+
+                    // Free the ssh session - this is safe to do even if session is NULL. This function returns void
                     ssh_free(session);
 
                     // Throw an error when set to strict and we have any result other than match
@@ -352,6 +368,8 @@ verify_knownhost(ssh_session session, const StringList *const knownHosts, String
                     if (state == SSH_KNOWN_HOSTS_CHANGED || state == SSH_KNOWN_HOSTS_ERROR)
                     {
                         ssh_disconnect(session);
+
+                        // Free the ssh session - this is safe to do even if session is NULL. This function returns void
                         ssh_free(session);
                         THROW_FMT(
                             ServiceError, "known hosts failure: '%s': %s [%d]: check type [%s]", strZ(host),
@@ -401,7 +419,6 @@ verify_knownhost(ssh_session session, const StringList *const knownHosts, String
 //            fprintf(stderr,"the file will be automatically created.\n");
 //            /* fallback to SSH_SERVER_NOT_KNOWN behavior */
 //        case SSH_SERVER_NOT_KNOWN:
-//            // jrt if accept new, then write to known_hosts file else throw error
 //            fprintf(stderr,
 //                    "The server is unknown. Do you trust the host key (yes/no)?\n");
 //            ssh_print_hash(SSH_PUBLICKEY_HASH_SHA256, hash, hlen);
@@ -667,7 +684,6 @@ storageSftpWaitFd(StorageSftp *const this, const int64_t rc)
     if (rc != SSH_AGAIN)
         FUNCTION_TEST_RETURN(BOOL, false);
 
-    // jrt verify this is correct
     const int direction = ssh_get_poll_flags(this->session);
     const bool waitingRead = direction & SSH_READ_PENDING;
     const bool waitingWrite = direction & SSH_WRITE_PENDING;
@@ -714,6 +730,125 @@ storageSftpInfo(THIS_VOID, const String *const file, const StorageInfoLevel leve
     ASSERT(file != NULL);
 
     StorageInfo result = {.level = level};
+
+    // Stat the file to check if it exists
+    sftp_attributes attr;
+    int rc;
+
+    if (param.followLink)
+        attr = sftp_stat(this->sftpSession, strZ(file));
+    else
+        attr = sftp_lstat(this->sftpSession, strZ(file));
+
+    if (attr == NULL)
+    {
+        // Throw on errors other than no such file
+        if ((rc = sftp_get_error(this->sftpSession)) != SSH_FX_NO_SUCH_FILE)
+        {
+
+            THROW_FMT(
+                FileOpenError,
+                STORAGE_ERROR_INFO ": %s", strZ(file),
+                strZ(strNewFmt("%s libssh err [%d] sftp err [%d]",
+                        ssh_get_error(this->session), ssh_get_error_code(this->session), rc)));
+        }
+    }
+    else
+    {
+        result.exists = true;
+
+        // Add type info (no need set file type since it is the default)
+        if (result.level >= storageInfoLevelType && !S_ISREG(attr->permissions))
+        {
+            if (S_ISDIR(attr->permissions))
+                result.type = storageTypePath;
+            else if (S_ISLNK(attr->permissions))
+                result.type = storageTypeLink;
+            else
+                result.type = storageTypeSpecial;
+        }
+
+        // Add basic level info
+        if (result.level >= storageInfoLevelBasic)
+        {
+            if (attr->flags & SSH_FILEXFER_ATTR_ACMODTIME)
+                result.timeModified = (time_t)attr->mtime64;
+
+            if (result.type == storageTypeFile)
+                if (attr->flags & SSH_FILEXFER_ATTR_SIZE)
+                    result.size = (uint64_t)attr->size;
+        }
+
+        // Add detail level info
+        if (result.level >= storageInfoLevelDetail)
+        {
+            if (attr->flags & SSH_FILEXFER_ATTR_UIDGID)
+            {
+                result.groupId = (unsigned int)attr->gid;
+                result.userId = (unsigned int)attr->uid;
+            }
+
+            if (attr->flags & SSH_FILEXFER_ATTR_PERMISSIONS)
+                result.mode = attr->permissions & (S_IRWXU | S_IRWXG | S_IRWXO);
+
+            if (result.type == storageTypeLink)
+            {
+                // Get the destination of the link
+                char *linkDestination = sftp_readlink(this->sftpSession, strZ(file));
+
+                if (linkDestination== NULL)
+                {
+                    // Free the attributes. This is safe to do even if attr is NULL.
+                    sftp_attributes_free(attr);
+
+                    THROW_FMT(
+                        FileReadError,
+                        "unable to get destination for link '%s': %s", strZ(file),
+                        strZ(
+                            strNewFmt("%s [%d]: sftp error [%d]", ssh_get_error(this->session), ssh_get_error_code(this->session),
+                                sftp_get_error(this->sftpSession))));
+                }
+
+                // Stat the link destination to get the size
+                const sftp_attributes destAttr = sftp_stat(this->sftpSession, linkDestination);
+                if (destAttr == NULL)
+                {
+                    // Free the linkDestination
+                    SSH_STRING_FREE_CHAR(linkDestination);
+
+                    THROW_FMT(
+                        FileReadError,
+                        "unable to get file size for link destination '%s': %s", strZ(file),
+                        strZ(
+                            strNewFmt("%s [%d]: sftp error [%d]", ssh_get_error(this->session), ssh_get_error_code(this->session),
+                                sftp_get_error(this->sftpSession))));
+                }
+
+                // Set the link destination and size of link destination as the file size
+                result.size = (uint64_t)destAttr->size;
+
+                MEM_CONTEXT_TEMP_BEGIN()
+                {
+                    String *resultStr = strNewZN(linkDestination, strlen(linkDestination));
+
+                    MEM_CONTEXT_PRIOR_BEGIN()
+                    {
+                        result.linkDestination = strDup(resultStr);
+                    }
+                    MEM_CONTEXT_PRIOR_END();
+                }
+                MEM_CONTEXT_TEMP_END();
+
+                // Free the linkDestination
+                SSH_STRING_FREE_CHAR(linkDestination);
+
+                // Free the attributes. This is safe to do even if attr is NULL.
+                sftp_attributes_free(destAttr);
+            }
+        }
+    }
+
+
 
 //    // Stat the file to check if it exists
 //    LIBSSH2_SFTP_ATTRIBUTES attr;
@@ -806,6 +941,9 @@ storageSftpInfo(THIS_VOID, const String *const file, const StorageInfoLevel leve
 //        }
 //    }
 //
+    // Free the attributes. This is safe to do even if attr is NULL.
+    sftp_attributes_free(attr);
+
     FUNCTION_LOG_RETURN(STORAGE_INFO, result);
 }
 
@@ -830,39 +968,39 @@ storageSftpExpandTildePath(const String *const tildePath)
 }
 
 /**********************************************************************************************************************************/
-//// Helper function to get info for a file if it exists. This logic can't live directly in storageSftpList() because there is a race
-//// condition where a file might exist while listing the directory but it is gone before stat() can be called. In order to get
-//// complete test coverage this function must be split out.
-//static void
-//storageSftpListEntry(
-//    StorageSftp *const this, StorageList *const list, const String *const path, const char *const name,
-//    const StorageInfoLevel level)
-//{
-//    FUNCTION_TEST_BEGIN();
-//        FUNCTION_TEST_PARAM(STORAGE_SFTP, this);
-//        FUNCTION_TEST_PARAM(STORAGE_LIST, list);
-//        FUNCTION_TEST_PARAM(STRING, path);
-//        FUNCTION_TEST_PARAM(STRINGZ, name);
-//        FUNCTION_TEST_PARAM(ENUM, level);
-//    FUNCTION_TEST_END();
-//
-//    FUNCTION_AUDIT_HELPER();
-//
-//    ASSERT(this != NULL);
-//    ASSERT(list != NULL);
-//    ASSERT(path != NULL);
-//    ASSERT(name != NULL);
-//
-//    StorageInfo info = storageInterfaceInfoP(this, strNewFmt("%s/%s", strZ(path), name), level);
-//
-//    if (info.exists)
-//    {
-//        info.name = STR(name);
-//        storageLstAdd(list, &info);
-//    }
-//
-//    FUNCTION_TEST_RETURN_VOID();
-//}
+// Helper function to get info for a file if it exists. This logic can't live directly in storageSftpList() because there is a race
+// condition where a file might exist while listing the directory but it is gone before stat() can be called. In order to get
+// complete test coverage this function must be split out.
+static void
+storageSftpListEntry(
+    StorageSftp *const this, StorageList *const list, const String *const path, const char *const name,
+    const StorageInfoLevel level)
+{
+    FUNCTION_TEST_BEGIN();
+        FUNCTION_TEST_PARAM(STORAGE_SFTP, this);
+        FUNCTION_TEST_PARAM(STORAGE_LIST, list);
+        FUNCTION_TEST_PARAM(STRING, path);
+        FUNCTION_TEST_PARAM(STRINGZ, name);
+        FUNCTION_TEST_PARAM(ENUM, level);
+    FUNCTION_TEST_END();
+
+    FUNCTION_AUDIT_HELPER();
+
+    ASSERT(this != NULL);
+    ASSERT(list != NULL);
+    ASSERT(path != NULL);
+    ASSERT(name != NULL);
+
+    StorageInfo info = storageInterfaceInfoP(this, strNewFmt("%s/%s", strZ(path), name), level);
+
+    if (info.exists)
+    {
+        info.name = STR(name);
+        storageLstAdd(list, &info);
+    }
+
+    FUNCTION_TEST_RETURN_VOID();
+}
 
 static StorageList *
 storageSftpList(THIS_VOID, const String *const path, const StorageInfoLevel level, const StorageInterfaceListParam param)
@@ -880,6 +1018,97 @@ storageSftpList(THIS_VOID, const String *const path, const StorageInfoLevel leve
     ASSERT(path != NULL);
 
     StorageList *result = NULL;
+
+    // Open the directory for read
+    sftp_dir dir = sftp_opendir(this->sftpSession, strZ(path));
+    if (dir == NULL)
+    {
+        // Throw on errors other than no such file
+        int rc = sftp_get_error(this->sftpSession);
+        if (rc != SSH_FX_NO_SUCH_FILE)
+        {
+            THROW_FMT(
+                PathOpenError,
+                STORAGE_ERROR_LIST_INFO ": %s", strZ(path),
+                strZ(strNewFmt("%s libssh err [%d] sftp err [%d]",
+                        ssh_get_error(this->session), ssh_get_error_code(this->session), rc)));
+        }
+    }
+    else
+    {
+        // Directory was found
+        result = storageLstNew(level);
+
+//        TRY_BEGIN()
+//        {
+            MEM_CONTEXT_TEMP_RESET_BEGIN()
+            {
+                // Read the directory entries
+                sftp_attributes attr;
+
+                while ((attr = sftp_readdir(this->sftpSession, dir)) != NULL)
+                {
+                    // Always skip . and ..
+                    if (!strEqZ(DOT_STR, attr->name) && !strEqZ(DOTDOT_STR, attr->name))
+                    {
+                        if (level == storageInfoLevelExists)
+                        {
+                            const StorageInfo storageInfo =
+                            {
+                                .name = STR(attr->name),
+                                .level = storageInfoLevelExists,
+                                .exists = true,
+                            };
+
+                            storageLstAdd(result, &storageInfo);
+                        }
+                        else
+                            storageSftpListEntry(this, result, path, attr->name, level);
+                    }
+
+                    // Free the attributes. This is safe to do even if attr is NULL.
+                    sftp_attributes_free(attr);
+
+                    // Reset the memory context occasionally so we don't use too much memory or slow down processing
+                    MEM_CONTEXT_TEMP_RESET(1000);
+                }
+                if (!sftp_dir_eof(dir))
+                {
+                    // Close the directory
+                    (void)sftp_closedir(dir);
+
+                    THROW_FMT(
+                        FileReadError,
+                        "unable to read directory '%s' %s", strZ(path),
+                        strZ(strNewFmt("%s libssh err [%d] sftp err [%d]", ssh_get_error(this->session),
+                                ssh_get_error_code(this->session), sftp_get_error(this->sftpSession))));
+                }
+
+                // Close the directory
+                int rc = sftp_closedir(dir);
+                if (rc != SSH_NO_ERROR)
+                {
+                    THROW_FMT(
+                        PathCloseError,
+                        "unable to close directory '%s' %s", strZ(path),
+                        strZ(strNewFmt("%s libssh err [%d] sftp err [%d]", ssh_get_error(this->session),
+                                ssh_get_error_code(this->session), sftp_get_error(this->sftpSession))));
+                }
+
+            }
+            MEM_CONTEXT_TEMP_END();
+//        }
+//        FINALLY()
+//        {
+//                fprintf(stderr, "close dir\n");
+//                fflush(stderr);
+//            // Close the directory
+//            sftp_closedir(dir);
+//        }
+//        TRY_END();
+    }
+
+
 
     // Open the directory for read
 //    LIBSSH2_SFTP_HANDLE *sftpHandle;
@@ -1355,9 +1584,6 @@ storageSftpNew(
             .timeout = timeout,
         };
 
-
-        // jrt !!! - set non blocking on file after sftp_open()
-
         // Init SSH session
         ssh_init();
 
@@ -1371,6 +1597,7 @@ storageSftpNew(
 
         if (ssh_options_set(this->session, SSH_OPTIONS_FD, &socketFd) < SSH_OK)
         {
+            // Free the ssh session - this is safe to do even if session is NULL. This function returns void
             ssh_free(this->session);
             THROW_FMT(ServiceError, "unable to set sftp socket fd [%d]", socketFd);
         }
@@ -1378,6 +1605,7 @@ storageSftpNew(
         // Set the sftp user
         if (ssh_options_set(this->session, SSH_OPTIONS_USER, strZ(user)) < SSH_OK)
         {
+            // Free the ssh session - this is safe to do even if session is NULL. This function returns void
             ssh_free(this->session);
             THROW_FMT(ServiceError, "unable to set sftp user [%s]", strZ(user));
         }
@@ -1385,6 +1613,7 @@ storageSftpNew(
         // Set the sftp host
         if (ssh_options_set(this->session, SSH_OPTIONS_HOST, strZ(host)) < SSH_OK)
         {
+            // Free the ssh session - this is safe to do even if session is NULL. This function returns void
             ssh_free(this->session);
             THROW_FMT(ServiceError, "unable to set sftp host [%s]", strZ(host));
         }
@@ -1392,6 +1621,7 @@ storageSftpNew(
         // Set the sftp host port
         if (ssh_options_set(this->session, SSH_OPTIONS_PORT, &port) < SSH_OK)
         {
+            // Free the ssh session - this is safe to do even if session is NULL. This function returns void
             ssh_free(this->session);
             THROW_FMT(ServiceError, "unable to set sftp port [%u]", port);
         }
@@ -1407,6 +1637,8 @@ storageSftpNew(
         if (rc < SSH_OK)
         {
             ssh_disconnect(this->session);
+
+            // Free the ssh session - this is safe to do even if session is NULL. This function returns void
             ssh_free(this->session);
             THROW_FMT(ServiceError, "unable to connect to sftp host [%s]", strZ(host));
         }
@@ -1442,6 +1674,8 @@ storageSftpNew(
             if (ssh_get_server_publickey(this->session, &srv_pubkey) < SSH_OK)
             {
                 ssh_disconnect(this->session);
+
+                // Free the ssh session - this is safe to do even if session is NULL. This function returns void
                 ssh_free(this->session);
                 THROW_FMT(ServiceError, "unable to get server public key");
             }
@@ -1451,6 +1685,8 @@ storageSftpNew(
             {
                 SSH_KEY_FREE(srv_pubkey);
                 ssh_disconnect(this->session);
+
+                // Free the ssh session - this is safe to do even if session is NULL. This function returns void
                 ssh_free(this->session);
                 THROW_FMT(ServiceError, "unable to get public key hash");
             }
@@ -1461,6 +1697,8 @@ storageSftpNew(
                 ssh_clean_pubkey_hash(&hash);
                 SSH_KEY_FREE(srv_pubkey);
                 ssh_disconnect(this->session);
+
+                // Free the ssh session - this is safe to do even if session is NULL. This function returns void
                 ssh_free(this->session);
                 THROW_FMT(ServiceError, "unable to get fingerprint hash");
             }
@@ -1483,6 +1721,8 @@ storageSftpNew(
             if (strcmp(fingerprint, strZ(param.hostFingerprint)) != 0)
             {
                 ssh_disconnect(this->session);
+
+                // Free the ssh session - this is safe to do even if session is NULL. This function returns void
                 ssh_free(this->session);
 
                 THROW_FMT(
@@ -1612,7 +1852,7 @@ storageSftpNew(
         // needed
         String *const privKeyPath = regExpMatchOne(STRDEF("^ *~"), keyPriv) ? storageSftpExpandTildePath(keyPriv) : strDup(keyPriv);
 
-        String *pubKeyPath = 
+        String *pubKeyPath =
             param.keyPub != NULL && regExpMatchOne(STRDEF("^ *~"), param.keyPub) ?
             storageSftpExpandTildePath(param.keyPub) :
             (param.keyPub != NULL ? strDup(param.keyPub) : strNewFmt("%s.pub", strZ(privKeyPath)));
@@ -1622,15 +1862,25 @@ storageSftpNew(
         if ((rc = ssh_pki_import_pubkey_file(strZ(pubKeyPath), &pubKey)) != SSH_OK)
         {
             ssh_disconnect(this->session);
+
+            // Free the ssh session - this is safe to do even if session is NULL. This function returns void
             ssh_free(this->session);
             THROW_FMT(ServiceError, "unable to import public key file '%s' [%d]", strZ(pubKeyPath), rc);
         }
 
         // Offer the public key to the ssh server
-        if ((rc = ssh_userauth_try_publickey(this->session, strZ(user), pubKey)) != SSH_AUTH_SUCCESS)
+        do
+        {
+            rc = ssh_userauth_try_publickey(this->session, strZ(user), pubKey);
+        }
+        while (storageSftpWaitFd(this, rc));
+
+        if (rc != SSH_AUTH_SUCCESS)
         {
             SSH_KEY_FREE(pubKey);
             ssh_disconnect(this->session);
+
+            // Free the ssh session - this is safe to do even if session is NULL. This function returns void
             ssh_free(this->session);
             THROW_FMT(ServiceError, "unable to authenticate with public key: %s for %s [%d]", strZ(pubKeyPath), strZ(user), rc);
         }
@@ -1642,16 +1892,26 @@ storageSftpNew(
         {
             SSH_KEY_FREE(pubKey);
             ssh_disconnect(this->session);
+
+            // Free the ssh session - this is safe to do even if session is NULL. This function returns void
             ssh_free(this->session);
             THROW_FMT(ServiceError, "unable to import private key file '%s' [%d]", strZ(privKeyPath), rc);
         }
 
         // Authenticate with the private key
-        if ((rc = ssh_userauth_publickey(this->session, strZ(user), privKey)) != SSH_AUTH_SUCCESS)
+        do
+        {
+            rc = ssh_userauth_publickey(this->session, strZ(user), privKey);
+        }
+        while (storageSftpWaitFd(this, rc));
+
+        if (rc != SSH_AUTH_SUCCESS)
         {
             SSH_KEY_FREE(privKey);
             SSH_KEY_FREE(pubKey);
             ssh_disconnect(this->session);
+
+            // Free the ssh session - this is safe to do even if session is NULL. This function returns void
             ssh_free(this->session);
             THROW_FMT(
                 ServiceError, "unable to authenticate with private key: %s for user %s [%d]", strZ(privKeyPath), strZ(user), rc);
@@ -1671,6 +1931,8 @@ storageSftpNew(
                 strZ(strNewFmt("%s [%d]", ssh_get_error(this->session), ssh_get_error_code(this->session))));
 
             ssh_disconnect(this->session);
+
+            // Free the ssh session - this is safe to do even if session is NULL. This function returns void
             ssh_free(this->session);
             THROW_FMT(ServiceError, "%s", strZ(errMsg));
         }
@@ -1684,8 +1946,11 @@ storageSftpNew(
                     strZ(strNewFmt("%s [%d] sftp error [%d]", ssh_get_error(this->session), ssh_get_error_code(this->session),
                         sftp_get_error(this->sftpSession))));
 
+            // Free the sftp session - this is safe to do even if sftpSession is NULL. This function returns void
             sftp_free(this->sftpSession);
             ssh_disconnect(this->session);
+
+            // Free the ssh session - this is safe to do even if session is NULL. This function returns void
             ssh_free(this->session);
             THROW_FMT(ServiceError, "%s", strZ(errMsg));
         }

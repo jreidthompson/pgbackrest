@@ -344,7 +344,7 @@ ssh_get_fingerprint_hash(enum ssh_publickey_hash_type type, unsigned char *hash,
     (void) len;
 
     HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_GET_FINGERPRINT_HASH, NULL, NULL);
-   
+
     char *fingerprint = NULL;;
     if (!hrnLibSsh->resultNull)
     {
@@ -554,7 +554,202 @@ ssh_pki_import_privkey_file(const char *filename, const char *passphrase, ssh_au
     return hrnLibSsh->resultInt;
 }
 
-///***********************************************************************************************************************************
+/***********************************************************************************************************************************
+Shim for ssh_stat
+***********************************************************************************************************************************/
+sftp_attributes
+sftp_stat(sftp_session sftpSession, const char *path)
+{
+    HrnLibSsh *hrnLibSsh = NULL;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        hrnLibSsh = hrnLibSshScriptRun(
+            HRNLIBSSH_SFTP_STAT,
+            varLstAdd(
+                varLstNew(), varNewStrZ(path)),
+            (HrnLibSsh *)sftpSession);
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    sftp_attributes attrs = calloc(1, sizeof(struct sftp_attributes_struct));
+
+    attrs->flags = 0;
+    attrs->flags |= (uint32_t)hrnLibSsh->flags;
+
+    attrs->permissions = 0;
+    attrs->permissions |= (unsigned long)hrnLibSsh->attrPerms;
+
+    attrs->mtime64 = (unsigned long)hrnLibSsh->mtime64;
+    attrs->uid = (unsigned long)hrnLibSsh->uid;
+    attrs->gid = (unsigned long)hrnLibSsh->gid;
+    attrs->size = (unsigned long)hrnLibSsh->filesize;
+
+    return hrnLibSsh->resultNull ? NULL : (sftp_attributes)attrs;
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_lstat
+***********************************************************************************************************************************/
+sftp_attributes
+sftp_lstat(sftp_session sftpSession, const char *path)
+{
+    HrnLibSsh *hrnLibSsh = NULL;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        hrnLibSsh = hrnLibSshScriptRun(
+            HRNLIBSSH_SFTP_LSTAT,
+            varLstAdd(
+                varLstNew(), varNewStrZ(path)),
+            (HrnLibSsh *)sftpSession);
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    sftp_attributes attrs = calloc(1, sizeof(struct sftp_attributes_struct));
+
+    attrs->flags = 0;
+    attrs->flags |= (uint32_t)hrnLibSsh->flags;
+
+    attrs->permissions = 0;
+    attrs->permissions |= (unsigned long)hrnLibSsh->attrPerms;
+
+    attrs->mtime64 = (unsigned long)hrnLibSsh->mtime64;
+    attrs->uid = (unsigned long)hrnLibSsh->uid;
+    attrs->gid = (unsigned long)hrnLibSsh->gid;
+    attrs->size = (unsigned long)hrnLibSsh->filesize;
+
+    if (hrnLibSsh->fileName != NULL)
+        attrs->name = strdup(strZ(hrnLibSsh->fileName));
+        //strdup(attrs->name, strZ(hrnLibSsh->fileName));
+        //strncpy(attrs->name, strZ(hrnLibSsh->fileName), sizeof(attrs->name));
+
+    return hrnLibSsh->resultNull ? NULL : (sftp_attributes)attrs;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_readlink
+***********************************************************************************************************************************/
+char *
+sftp_readlink(sftp_session sftpSession, const char *path)
+{
+    HrnLibSsh *hrnLibSsh = NULL;
+    char *result = NULL;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        hrnLibSsh = hrnLibSshScriptRun(
+            HRNLIBSSH_SFTP_READLINK,
+            varLstAdd(
+                varLstNew(), varNewStrZ(path)),
+            (HrnLibSsh *)sftpSession);
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    if (hrnLibSsh->symlinkExTarget != NULL)
+    {
+        result = calloc(1, strSize(hrnLibSsh->symlinkExTarget) + 1);
+        strncpy(result, strZ(hrnLibSsh->symlinkExTarget), strSize(hrnLibSsh->symlinkExTarget));
+    }
+
+    return hrnLibSsh->resultNull ? NULL : result;
+}
+
+/***********************************************************************************************************************************
+Shim for ssh_finalize
+***********************************************************************************************************************************/
+int
+ssh_finalize(void)
+{
+    return hrnLibSshScriptRun(HRNLIBSSH_FINALIZE, NULL, NULL)->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_opendir
+***********************************************************************************************************************************/
+sftp_dir
+sftp_opendir(sftp_session sftpSession, const char *path)
+{
+    HrnLibSsh *hrnLibSsh = NULL;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        hrnLibSsh = hrnLibSshScriptRun(
+            HRNLIBSSH_SFTP_OPENDIR,
+            varLstAdd(
+                varLstNew(), varNewStrZ(path)),
+            (HrnLibSsh *)sftpSession);
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    return hrnLibSsh->resultNull ? NULL : (sftp_dir)hrnLibSsh;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_readdir
+***********************************************************************************************************************************/
+sftp_attributes
+sftp_readdir(sftp_session sftpSession, sftp_dir dir)
+{
+    // Avoid compiler complaining of unused param
+    (void) dir;
+
+    HrnLibSsh *hrnLibSsh = hrnLibSshScriptRun(HRNLIBSSH_SFTP_READDIR, NULL, (HrnLibSsh *)sftpSession);
+
+    sftp_attributes attrs = calloc(1, sizeof(struct sftp_attributes_struct));
+
+    attrs->flags = 0;
+    attrs->flags |= (uint32_t)hrnLibSsh->flags;
+
+    attrs->permissions = 0;
+    attrs->permissions |= (unsigned long)hrnLibSsh->attrPerms;
+
+    attrs->mtime64 = (unsigned long)hrnLibSsh->mtime64;
+    attrs->uid = (unsigned long)hrnLibSsh->uid;
+    attrs->gid = (unsigned long)hrnLibSsh->gid;
+    attrs->size = (unsigned long)hrnLibSsh->filesize;
+
+    if (hrnLibSsh->fileName != NULL)
+        attrs->name = strdup(strZ(hrnLibSsh->fileName));
+
+    return hrnLibSsh->resultNull ? NULL : (sftp_attributes)attrs;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_closedir
+***********************************************************************************************************************************/
+int
+sftp_closedir(sftp_dir dir)
+{
+    if (dir == NULL)
+    {
+        snprintf(
+            hrnLibSshScriptError, sizeof(hrnLibSshScriptError),
+            "libssh script function 'sftp_closedir', expects dir to be not NULL");
+        THROW(AssertError, hrnLibSshScriptError);
+    }
+
+    return hrnLibSshScriptRun(HRNLIBSSH_SFTP_CLOSEDIR, NULL, (HrnLibSsh *)dir)->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_dir_eof
+***********************************************************************************************************************************/
+int
+sftp_dir_eof(sftp_dir dir)
+{
+    if (dir == NULL)
+    {
+        snprintf(
+            hrnLibSshScriptError, sizeof(hrnLibSshScriptError),
+            "libssh script function 'sftp_dir_eof', expects dir to be not NULL");
+        THROW(AssertError, hrnLibSshScriptError);
+    }
+
+    return hrnLibSshScriptRun(HRNLIBSSH_SFTP_DIR_EOF, NULL, (HrnLibSsh *)dir)->resultInt;
+}
+
+
 //Shim for ssh_knownhost_addc
 //***********************************************************************************************************************************/
 //int
