@@ -1024,7 +1024,7 @@ storageSftpList(THIS_VOID, const String *const path, const StorageInfoLevel leve
     if (dir == NULL)
     {
         // Throw on errors other than no such file
-        int rc = sftp_get_error(this->sftpSession);
+        const int rc = sftp_get_error(this->sftpSession);
         if (rc != SSH_FX_NO_SUCH_FILE)
         {
             THROW_FMT(
@@ -1039,8 +1039,8 @@ storageSftpList(THIS_VOID, const String *const path, const StorageInfoLevel leve
         // Directory was found
         result = storageLstNew(level);
 
-//        TRY_BEGIN()
-//        {
+        TRY_BEGIN()
+        {
             MEM_CONTEXT_TEMP_RESET_BEGIN()
             {
                 // Read the directory entries
@@ -1072,40 +1072,37 @@ storageSftpList(THIS_VOID, const String *const path, const StorageInfoLevel leve
                     // Reset the memory context occasionally so we don't use too much memory or slow down processing
                     MEM_CONTEXT_TEMP_RESET(1000);
                 }
-                if (!sftp_dir_eof(dir))
-                {
-                    // Close the directory
-                    (void)sftp_closedir(dir);
-
-                    THROW_FMT(
-                        FileReadError,
-                        "unable to read directory '%s' %s", strZ(path),
-                        strZ(strNewFmt("%s libssh err [%d] sftp err [%d]", ssh_get_error(this->session),
-                                ssh_get_error_code(this->session), sftp_get_error(this->sftpSession))));
-                }
-
-                // Close the directory
-                int rc = sftp_closedir(dir);
-                if (rc != SSH_NO_ERROR)
-                {
-                    THROW_FMT(
-                        PathCloseError,
-                        "unable to close directory '%s' %s", strZ(path),
-                        strZ(strNewFmt("%s libssh err [%d] sftp err [%d]", ssh_get_error(this->session),
-                                ssh_get_error_code(this->session), sftp_get_error(this->sftpSession))));
-                }
-
             }
             MEM_CONTEXT_TEMP_END();
-//        }
-//        FINALLY()
-//        {
-//                fprintf(stderr, "close dir\n");
-//                fflush(stderr);
-//            // Close the directory
-//            sftp_closedir(dir);
-//        }
-//        TRY_END();
+        }
+        FINALLY()
+        {
+            // Throw an error if we didn't reach the end of the directory
+            if (!sftp_dir_eof(dir))
+            {
+                // Close the directory
+                (void)sftp_closedir(dir);
+
+                THROW_FMT(
+                    FileReadError,
+                    "unable to read path '%s' %s", strZ(path),
+                    strZ(strNewFmt("%s libssh err [%d] sftp err [%d]", ssh_get_error(this->session),
+                        ssh_get_error_code(this->session), sftp_get_error(this->sftpSession))));
+            }
+
+            // Close the directory
+            int rc = sftp_closedir(dir);
+
+            if (rc != SSH_NO_ERROR)
+            {
+                THROW_FMT(
+                    PathCloseError,
+                    "unable to close path '%s' after listing: %s", strZ(path),
+                    strZ(strNewFmt("%s libssh err [%d] sftp err [%d]", ssh_get_error(this->session),
+                        ssh_get_error_code(this->session), sftp_get_error(this->sftpSession))));
+            }
+        }
+        TRY_END();
     }
 
 
@@ -1317,6 +1314,7 @@ storageSftpNewWrite(THIS_VOID, const String *const file, const StorageInterfaceN
     ASSERT(param.group == NULL);
     ASSERT(param.timeModified == 0);
 
+//fprintf(stderr, "jrt storageSftpNewWrite\n");
     FUNCTION_LOG_RETURN(
         STORAGE_WRITE,
         storageWriteSftpNew(
@@ -1346,7 +1344,35 @@ storageSftpPathCreate(
     ASSERT(this != NULL);
     ASSERT(path != NULL);
 
-    //int rc;
+    // Attempt to create the directory
+    if (sftp_mkdir(this->sftpSession, strZ(path), mode) < 0)
+    {
+        int sftpErr = sftp_get_error(this->sftpSession);
+
+        if (sftpErr == SSH_FX_NO_SUCH_FILE && !noParentCreate)
+        {
+            // If the parent path does not exist then create it if allowed
+            String *const pathParent = strPath(path);
+
+            storageInterfacePathCreateP(this, pathParent, errorOnExists, noParentCreate, mode);
+            storageInterfacePathCreateP(this, path, errorOnExists, noParentCreate, mode);
+
+            strFree(pathParent);
+        }
+        else 
+        {
+            if (sftpErr == SSH_FX_FILE_ALREADY_EXISTS && errorOnExists)
+                THROW_FMT(PathCreateError, "unable to create path '%s': path already exists", strZ(path));
+            else if (sftpErr != SSH_FX_FILE_ALREADY_EXISTS)
+            {
+                THROW_FMT(
+                    PathCreateError, "sftp error unable to create path '%s': %s", strZ(path),
+                    strZ(strNewFmt(
+                            "%s [%d]: sftp error [%d]", ssh_get_error(this->session), ssh_get_error_code(this->session), sftpErr)));
+            }
+        }
+    }
+
 
 //    // Attempt to create the directory
 //    do
@@ -1433,97 +1459,68 @@ storageSftpPathRemove(THIS_VOID, const String *const path, const bool recurse, c
 
     bool result = true;
 
-//    MEM_CONTEXT_TEMP_BEGIN()
-//    {
-//        // Recurse if requested
-//        if (recurse)
-//        {
-//            StorageList *const list = storageInterfaceListP(this, path, storageInfoLevelExists);
-//
-//            if (list != NULL)
-//            {
-//                MEM_CONTEXT_TEMP_RESET_BEGIN()
-//                {
-//                    for (unsigned int listIdx = 0; listIdx < storageLstSize(list); listIdx++)
-//                    {
-//                        const String *const file = strNewFmt("%s/%s", strZ(path), strZ(storageLstGet(list, listIdx).name));
-//
-//                        // Rather than stat the file to discover what type it is, just try to unlink it and see what happens
-//                        int rc;
-//
-//                        do
-//                        {
-//                            rc = libssh2_sftp_unlink_ex(this->sftpSession, strZ(file), (unsigned int)strSize(file));
-//                        }
-//                        while (storageSftpWaitFd(this, rc));
-//
-//                        if (rc != 0)
-//                        {
-//                            if (rc == LIBSSH2_ERROR_EAGAIN)
-//                                THROW_FMT(PathRemoveError, "timeout removing file '%s'", strZ(file));
-//
-//                            // Attempting to unlink a directory appears to return LIBSSH2_FX_FAILURE or LIBSSH2_FX_PERMISSION_DENIED
-//                            if (rc == LIBSSH2_ERROR_SFTP_PROTOCOL)
-//                            {
-//                                const uint64_t sftpErrno = libssh2_sftp_last_error(this->sftpSession);
-//
-//                                if (sftpErrno == LIBSSH2_FX_FAILURE || sftpErrno == LIBSSH2_FX_PERMISSION_DENIED)
-//                                    storageInterfacePathRemoveP(this, file, true);
-//                                else
-//                                {
-//                                    THROW_FMT(
-//                                        PathRemoveError, STORAGE_ERROR_PATH_REMOVE_FILE " libssh sftp [%" PRIu64 "]", strZ(file),
-//                                        sftpErrno);
-//                                }
-//                            }
-//                            else
-//                                THROW_FMT(PathRemoveError, STORAGE_ERROR_PATH_REMOVE_FILE " libssh ssh [%d]", strZ(file), rc);
-//                        }
-//
-//                        // Reset the memory context occasionally so we don't use too much memory or slow down processing
-//                        MEM_CONTEXT_TEMP_RESET(1000);
-//                    }
-//                }
-//                MEM_CONTEXT_TEMP_END();
-//            }
-//        }
-//
-//        // Delete the path
-//        int rc;
-//
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        // Recurse if requested
+        if (recurse)
+        {
+            StorageList *const list = storageInterfaceListP(this, path, storageInfoLevelExists);
+
+            if (list != NULL)
+            {
+                MEM_CONTEXT_TEMP_RESET_BEGIN()
+                {
+                    for (unsigned int listIdx = 0; listIdx < storageLstSize(list); listIdx++)
+                    {
+                        const String *const file = strNewFmt("%s/%s", strZ(path), strZ(storageLstGet(list, listIdx).name));
+
+                        // Rather than stat the file to discover what type it is, just try to unlink it and see what happens
+
+                        if (sftp_unlink(this->sftpSession, strZ(file)) < 0)
+                        {
+                            const int sftpErrno = sftp_get_error(this->sftpSession);
+
+                            // Attempting to unlink a directory appears to return SSH_FX_FAILURE  jrt or SSH_FX_PERMISSION_DENIED
+
+                            //if (sftpErrno == LIBSSH2_FX_FAILURE || sftpErrno == LIBSSH2_FX_PERMISSION_DENIED)
+                            if (sftpErrno == SSH_FX_FAILURE)
+                                storageInterfacePathRemoveP(this, file, true);
+                            else
+                            {
+                                THROW_FMT(
+                                    PathRemoveError, STORAGE_ERROR_PATH_REMOVE_FILE " libssh sftp [%d]", strZ(file),
+                                    sftpErrno);
+                            }
+                        }
+
+                        // Reset the memory context occasionally so we don't use too much memory or slow down processing
+                        MEM_CONTEXT_TEMP_RESET(1000);
+                    }
+                }
+                MEM_CONTEXT_TEMP_END();
+            }
+        }
+
+        // Delete the path
+
 //        do
 //        {
 //            rc = libssh2_sftp_rmdir_ex(this->sftpSession, strZ(path), (unsigned int)strSize(path));
 //        }
 //        while (storageSftpWaitFd(this, rc));
 //
-//        if (rc != 0)
-//        {
-//            if (rc == LIBSSH2_ERROR_EAGAIN)
-//                THROW_FMT(PathRemoveError, "timeout removing path '%s'", strZ(path));
-//
-//            if (rc == LIBSSH2_ERROR_SFTP_PROTOCOL)
-//            {
-//                const uint64_t sftpErrno = libssh2_sftp_last_error(this->sftpSession);
-//
-//                if (sftpErrno != LIBSSH2_FX_NO_SUCH_FILE)
-//                    THROW_FMT(PathRemoveError, STORAGE_ERROR_PATH_REMOVE " sftp error [%" PRIu64 "]", strZ(path), sftpErrno);
-//
-//                // Path does not exist
-//                result = false;
-//            }
-//            else
-//            {
-//                // Path does not exist
-//                result = false;
-//
-//                storageSftpEvalLibSsh2Error(
-//                    rc, libssh2_sftp_last_error(this->sftpSession), &PathRemoveError,
-//                    strNewFmt(STORAGE_ERROR_PATH_REMOVE, strZ(path)), NULL);
-//            }
-//        }
-//    }
-//    MEM_CONTEXT_TEMP_END();
+        if (sftp_rmdir(this->sftpSession, strZ(path)) < 0)
+        {
+            const int sftpErrno = sftp_get_error(this->sftpSession);
+
+            if (sftpErrno != SSH_FX_NO_SUCH_FILE)
+                THROW_FMT(PathRemoveError, STORAGE_ERROR_PATH_REMOVE " sftp error [%d]", strZ(path), sftpErrno);
+
+            // Path does not exist
+            result = false;
+        }
+    }
+    MEM_CONTEXT_TEMP_END();
 
     FUNCTION_LOG_RETURN(BOOL, result);
 }

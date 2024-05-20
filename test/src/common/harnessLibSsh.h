@@ -73,22 +73,23 @@ Function constants
 #define HRNLIBSSH_SFTP_READDIR                                      "sftp_readdir"
 #define HRNLIBSSH_SFTP_CLOSEDIR                                     "sftp_closedir"
 #define HRNLIBSSH_SFTP_DIR_EOF                                      "sftp_dir_eof"
-//#define HRNLIBSSH_SESSION_INIT_EX                                   "ssh_session_init_ex"
-//#define HRNLIBSSH_SESSION_LAST_ERRNO                                "ssh_session_last_errno"
+#define HRNLIBSSH_SFTP_WRITE                                        "sftp_write"
+#define HRNLIBSSH_SFTP_OPEN                                         "sftp_open"
+#define HRNLIBSSH_SFTP_MKDIR                                        "sftp_mkdir"
+#define HRNLIBSSH_SFTP_CLOSE                                        "sftp_close"
+#define HRNLIBSSH_SFTP_FSYNC                                        "sftp_fsync"
+#define HRNLIBSSH_SFTP_RENAME                                       "sftp_rename"
+#define HRNLIBSSH_SFTP_RMDIR                                        "sftp_rmdir"
+#define HRNLIBSSH_SFTP_UNLINK                                       "sftp_unlink"
 //#define HRNLIBSSH_SESSION_LAST_ERROR                                "ssh_session_last_error"
-//#define HRNLIBSSH_SFTP_FSYNC                                        "ssh_sftp_fsync"
 //#define HRNLIBSSH_SFTP_INIT                                         "ssh_sftp_init"
 //#define HRNLIBSSH_SFTP_LAST_ERROR                                   "ssh_sftp_last_error"
-//#define HRNLIBSSH_SFTP_MKDIR_EX                                     "ssh_sftp_mkdir_ex"
 //#define HRNLIBSSH_SFTP_READ                                         "ssh_sftp_read"
-//#define HRNLIBSSH_SFTP_RENAME_EX                                    "ssh_sftp_rename_ex"
-//#define HRNLIBSSH_SFTP_RMDIR_EX                                     "ssh_sftp_rmdir_ex"
 //#define HRNLIBSSH_SFTP_SEEK64                                       "ssh_sftp_seek64"
 //#define HRNLIBSSH_SFTP_SHUTDOWN                                     "ssh_sftp_shutdown"
 //#define HRNLIBSSH_SFTP_STAT_EX                                      "ssh_sftp_stat_ex"
 //#define HRNLIBSSH_SFTP_SYMLINK_EX                                   "ssh_sftp_symlink_ex"
 //#define HRNLIBSSH_SFTP_UNLINK_EX                                    "ssh_sftp_unlink_ex"
-//#define HRNLIBSSH_SFTP_WRITE                                        "ssh_sftp_write"
 //#define HRNLIBSSH_USERAUTH_PUBLICKEY_FROMFILE_EX                    "ssh_userauth_publickey_fromfile_ex"
 
 /***********************************************************************************************************************************
@@ -116,11 +117,12 @@ Function constants
     {.function = HRNLIBSSH_SFTP_INIT, .resultInt = SSH_OK}
 
 
+/*    {.function = HRNLIBSSH_SFTP_FREE},                                                                                             \
+//    {.function = HRNLIBSSH_DISCONNECT},                                                                                            \
+//    {.function = HRNLIBSSH_FREE},                                                                                                  \
+*/
 // Set of functions mimicking libssh shutdown and disconnect
 #define HRNLIBSSH_MACRO_SHUTDOWN()                                                                                                 \
-    {.function = HRNLIBSSH_SFTP_FREE},                                                                                             \
-    {.function = HRNLIBSSH_DISCONNECT},                                                                                            \
-    {.function = HRNLIBSSH_FREE},                                                                                                  \
     {.function = HRNLIBSSH_FINALIZE, .resultInt = 0},                                                                              \
     {.function = NULL}                                                                                                             \
 

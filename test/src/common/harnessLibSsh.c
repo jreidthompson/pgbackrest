@@ -749,6 +749,184 @@ sftp_dir_eof(sftp_dir dir)
     return hrnLibSshScriptRun(HRNLIBSSH_SFTP_DIR_EOF, NULL, (HrnLibSsh *)dir)->resultInt;
 }
 
+/***********************************************************************************************************************************
+Shim for sftp_write
+***********************************************************************************************************************************/
+ssize_t
+sftp_write(sftp_file file, const void *buf, size_t count)
+{
+//    fprintf(stderr, "jrt sftp_write: %s\n", (char *)buf);
+//    fprintf(stderr, "jrt sftp_write: %zu\n", count);
+//    fflush(stderr);
+    HrnLibSsh *hrnLibSsh = NULL;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        hrnLibSsh = hrnLibSshScriptRun(
+            HRNLIBSSH_SFTP_WRITE,
+            varLstAdd(
+                varLstAdd(
+                    varLstNew(), varNewStrZ((char*)buf)),
+            varNewUInt64(count)),
+            (HrnLibSsh *)file);
+    }
+    MEM_CONTEXT_TEMP_END();
+
+//    fprintf(stderr, "jrt sftp_write: %s\n", "exit");
+//    fflush(stderr);
+    // Return number of bytes written
+    return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_open
+***********************************************************************************************************************************/
+sftp_file
+sftp_open(sftp_session sftpSession, const char *file, int access, mode_t mode)
+{
+    HrnLibSsh *hrnLibSsh = NULL;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        hrnLibSsh = hrnLibSshScriptRun(
+            HRNLIBSSH_SFTP_OPEN,
+            varLstAdd(
+                varLstAdd(
+                    varLstAdd(
+                        varLstNew(), varNewStrZ(file)),
+                    varNewInt(access)),
+                varNewUInt64(mode)),
+            (HrnLibSsh *)sftpSession);
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    return hrnLibSsh->resultNull ? NULL : (sftp_file)hrnLibSsh;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_mkdir
+***********************************************************************************************************************************/
+int
+sftp_mkdir(sftp_session sftpSession, const char *path, mode_t mode)
+{
+    HrnLibSsh *hrnLibSsh = NULL;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        hrnLibSsh = hrnLibSshScriptRun(
+            HRNLIBSSH_SFTP_MKDIR,
+            varLstAdd(
+                varLstAdd(
+                    varLstNew(), varNewStrZ(path)),
+                varNewUInt64(mode)),
+            (HrnLibSsh *)sftpSession);
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_mkdir
+***********************************************************************************************************************************/
+int
+sftp_close(sftp_file file)
+{
+    if (file == NULL)
+    {
+        snprintf(
+            hrnLibSshScriptError, sizeof(hrnLibSshScriptError),
+            "libssh script function 'sftp_close', expects file to be not NULL");
+        THROW(AssertError, hrnLibSshScriptError);
+    }
+
+    return hrnLibSshScriptRun(HRNLIBSSH_SFTP_CLOSE, NULL, (HrnLibSsh *)file)->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_fsync
+***********************************************************************************************************************************/
+int
+sftp_fsync(sftp_file file)
+{
+    if (file == NULL)
+    {
+        snprintf(
+            hrnLibSshScriptError, sizeof(hrnLibSshScriptError),
+            "libssh script function 'sftp_fsync', expects file to be not NULL");
+        THROW(AssertError, hrnLibSshScriptError);
+    }
+
+    return hrnLibSshScriptRun(HRNLIBSSH_SFTP_FSYNC, NULL, (HrnLibSsh *)file)->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_rename
+***********************************************************************************************************************************/
+int
+sftp_rename(sftp_session sftpSession, const char *source, const char *destination)
+{
+    HrnLibSsh *hrnLibSsh = NULL;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        hrnLibSsh = hrnLibSshScriptRun(
+            HRNLIBSSH_SFTP_RENAME,
+            varLstAdd(
+                varLstAdd(
+                    varLstNew(), varNewStrZ(source)),
+            varNewStrZ(destination)),
+            (HrnLibSsh *)sftpSession);
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_rmdir
+***********************************************************************************************************************************/
+int
+sftp_rmdir(sftp_session sftpSession, const char *path)
+{
+    HrnLibSsh *hrnLibSsh = NULL;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        hrnLibSsh = hrnLibSshScriptRun(
+            HRNLIBSSH_SFTP_RMDIR,
+            varLstAdd(
+                varLstNew(), varNewStrZ(path)),
+            (HrnLibSsh *)sftpSession);
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_unlink
+***********************************************************************************************************************************/
+int
+sftp_unlink(sftp_session sftpSession, const char *file)
+{
+    HrnLibSsh *hrnLibSsh = NULL;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        hrnLibSsh = hrnLibSshScriptRun(
+            HRNLIBSSH_SFTP_UNLINK,
+            varLstAdd(
+                varLstNew(), varNewStrZ(file)),
+            (HrnLibSsh *)sftpSession);
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    return hrnLibSsh->resultInt;
+}
+
+
+
 
 //Shim for ssh_knownhost_addc
 //***********************************************************************************************************************************/

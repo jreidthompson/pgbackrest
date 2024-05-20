@@ -197,7 +197,7 @@ endif
 if not lib_ssh2.found() and get_option('with-libssh').auto() and not get_option('with-libssh').disabled()
     lib_ssh = dependency('libssh', required: get_option('with-libssh').auto())
 
-if lib_ssh.found()
+    if lib_ssh.found()
         configuration.set('HAVE_LIBSSH', true, description: 'Is libssh present?')
     endif
 endif

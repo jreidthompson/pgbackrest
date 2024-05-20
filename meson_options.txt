@@ -1,6 +1,6 @@
 option('configdir', type: 'string', value: '/etc/pgbackrest', description: 'Configuration directory')
 option('fatal-errors', type: 'boolean', value: false, description: 'Stop compilation on first error')
 option('liblz4', type: 'feature', value: 'auto', description: 'Enable LZ4 compression support')
-option('libssh2', type: 'feature', value: 'auto', description: 'Enable SFTP storage support')
+option('libssh2', type: 'feature', value: 'auto', description: 'Enable SFTP storage support. If libssh2 not present, fail over and attempt with libssh.')
 option('libzstd', type: 'feature', value: 'auto', description: 'Enable Zstandard compression support')
-option('with-libssh', type: 'feature', value: 'auto', description: 'Enable SFTP with libssh rather than libssh2. If defined as auto and libssh is not present, fail over and attempt with libssh2. If defined as enabled with libssh not present, configure will fail.')
+option('with-libssh', type: 'feature', value: 'auto', description: 'Enable SFTP with libssh rather than libssh2. If defined as enabled with libssh not present, fail over and attempt with libssh2.')
