@@ -403,7 +403,7 @@ storageWriteSftpNew(
         this->nameTmp = atomic ? strNewFmt("%s." STORAGE_FILE_TEMP_EXT, strZ(name)) : this->interface.name;
     }
     OBJ_NEW_END();
-//fprintf(stderr, "jrt storageWriteSftpNew: %s\n", strZ(this->nameTmp));
+
     FUNCTION_LOG_RETURN(STORAGE_WRITE, storageWriteNew(this, &this->interface));
 }
 

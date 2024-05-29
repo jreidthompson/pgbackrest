@@ -81,11 +81,11 @@ Function constants
 #define HRNLIBSSH_SFTP_RENAME                                       "sftp_rename"
 #define HRNLIBSSH_SFTP_RMDIR                                        "sftp_rmdir"
 #define HRNLIBSSH_SFTP_UNLINK                                       "sftp_unlink"
+#define HRNLIBSSH_SFTP_READ                                         "sftp_read"
+#define HRNLIBSSH_SFTP_SEEK64                                       "sftp_seek64"
 //#define HRNLIBSSH_SESSION_LAST_ERROR                                "ssh_session_last_error"
 //#define HRNLIBSSH_SFTP_INIT                                         "ssh_sftp_init"
 //#define HRNLIBSSH_SFTP_LAST_ERROR                                   "ssh_sftp_last_error"
-//#define HRNLIBSSH_SFTP_READ                                         "ssh_sftp_read"
-//#define HRNLIBSSH_SFTP_SEEK64                                       "ssh_sftp_seek64"
 //#define HRNLIBSSH_SFTP_SHUTDOWN                                     "ssh_sftp_shutdown"
 //#define HRNLIBSSH_SFTP_STAT_EX                                      "ssh_sftp_stat_ex"
 //#define HRNLIBSSH_SFTP_SYMLINK_EX                                   "ssh_sftp_symlink_ex"
@@ -146,7 +146,7 @@ typedef struct HrnLibSsh
     uint64_t offset;                                                // libssh seek offset
     const String *symlinkExTarget;                                  // libssh sftp symlink target
     const String *fileName;                                         // libssh_readdir* libssh stat* filename
-//    const String *readBuffer;                                       // what to copy into read buffer
+    const String *readBuffer;                                       // what to copy into read buffer
     TimeMSec sleep;                                                 // Sleep specified milliseconds before returning from function
     size_t len;                                                     // libssh session hostkey len
     int type;                                                       // libssh session hostkey type

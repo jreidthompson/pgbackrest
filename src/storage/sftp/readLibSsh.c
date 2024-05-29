@@ -20,9 +20,9 @@ typedef struct StorageReadSftp
     StorageSftp *storage;                                           // Storage that created this object
 
 // jrt pointers??? or no
-    ssh_session *session;                                           // Libssh session
-    sftp_session *sftpSession;                                      // Libssh session sftp session
-    sftp_file *sftpHandle;                                          // Libssh session sftp handle
+    ssh_session session;                                            // Libssh session
+    sftp_session sftpSession;                                       // Libssh session sftp session
+    sftp_file sftpHandle;                                           // Libssh session sftp handle
     sftp_attributes *attr;                                          // Libssh file attributes
     uint64_t current;                                               // Current bytes read from file
     uint64_t limit;                                                 // Limit bytes to be read from file (UINT64_MAX for no limit)
@@ -51,43 +51,45 @@ storageReadSftpOpen(THIS_VOID)
 
     ASSERT(this != NULL);
 
-//    do
-//    {
-//        this->sftpHandle = libssh2_sftp_open_ex(
-//            this->sftpSession, strZ(this->interface.name), (unsigned int)strSize(this->interface.name), LIBSSH2_FXF_READ, 0,
-//            LIBSSH2_SFTP_OPENFILE);
-//    }
-//    while (this->sftpHandle == NULL && storageSftpWaitFd(this->storage, libssh2_session_last_errno(this->session)));
-//
-//    if (this->sftpHandle == NULL)
-//    {
-//        int rc = libssh2_session_last_errno(this->session);
-//
-//        if (rc == LIBSSH2_ERROR_SFTP_PROTOCOL || rc == LIBSSH2_ERROR_EAGAIN)
-//        {
-//            if (libssh2_sftp_last_error(this->sftpSession) == LIBSSH2_FX_NO_SUCH_FILE)
-//            {
-//                if (!this->interface.ignoreMissing)
-//                    THROW_FMT(FileMissingError, STORAGE_ERROR_READ_MISSING, strZ(this->interface.name));
-//            }
-//            else
-//            {
-//                storageSftpEvalLibSsh2Error(
-//                    rc, libssh2_sftp_last_error(this->sftpSession), &FileOpenError,
-//                    strNewFmt(STORAGE_ERROR_READ_OPEN, strZ(this->interface.name)), NULL);
-//            }
-//        }
-//    }
-//    // Else success
-//    else
-//    {
-//        // Seek to offset, libssh2_sftp_seek64 returns void
-//        if (this->interface.offset != 0)
-//            libssh2_sftp_seek64(this->sftpHandle, this->interface.offset);
-//    }
+    // Open the file
+    this->sftpHandle = sftp_open(this->sftpSession, strZ(this->interface.name), SSH_FXF_READ, 0);
 
-//    FUNCTION_LOG_RETURN(BOOL, this->sftpHandle != NULL);
-    FUNCTION_LOG_RETURN(BOOL, true);
+    // Handle errors
+    if (this->sftpHandle == NULL)
+    {
+        const int rc = sftp_get_error(this->sftpSession);
+
+        if (rc != 0)
+        {
+            if (rc == SSH_FX_NO_SUCH_FILE)
+            {
+                if (!this->interface.ignoreMissing)
+                {
+                   THROW_FMT(
+                        FileMissingError,
+                        STORAGE_ERROR_READ_MISSING ": %s [%d] libssh sftp error [%d]", strZ(this->interface.name),
+                        ssh_get_error(this->session), ssh_get_error_code(this->session), rc);
+                }
+            }
+            else
+            {
+                THROW_FMT(
+                    FileOpenError,
+                    STORAGE_ERROR_READ_OPEN ": %s [%d] libssh sftp error [%d]", strZ(this->interface.name),
+                    ssh_get_error(this->session), ssh_get_error_code(this->session), rc);
+            }
+        }
+    }
+    // Else success
+    else
+    {
+        // Seek to offset
+        if (this->interface.offset != 0)
+            if (sftp_seek64(this->sftpHandle, this->interface.offset) < 0)
+                THROW_FMT(FileOpenError, STORAGE_ERROR_READ_SEEK, this->interface.offset, strZ(this->interface.name));
+    }
+
+    FUNCTION_LOG_RETURN(BOOL, this->sftpHandle != NULL);
 }
 
 /***********************************************************************************************************************************
@@ -109,70 +111,69 @@ storageReadSftp(THIS_VOID, Buffer *const buffer, const bool block)
 
     ssize_t actualBytes = 0;
 
-//    // Read if EOF has not been reached
-//    if (!this->eof)
-//    {
-//        // Determine expected bytes to read. If remaining size in the buffer would exceed the limit then reduce the expected read.
-//        size_t expectedBytes = bufRemains(buffer);
-//
-//        if (this->current + expectedBytes > this->limit)
-//            expectedBytes = (size_t)(this->limit - this->current);
-//
-//        bufLimitSet(buffer, expectedBytes);
-//        ssize_t rc = 0;
-//
-//        // Read until EOF or buffer is full
-//        do
-//        {
+//    fprintf(stderr, "jrt a this->eof: %d\n", this->eof);
+    // Read if EOF has not been reached
+    if (!this->eof)
+    {
+//        fprintf(stderr, "jrt this->current: %lu\n", this->current);
+        // Determine expected bytes to read. If remaining size in the buffer would exceed the limit then reduce the expected read.
+        size_t expectedBytes = bufRemains(buffer);
+
+//    fprintf(stderr, "jrt read expected bytes %lu\n", expectedBytes);
+        if (this->current + expectedBytes > this->limit)
+            expectedBytes = (size_t)(this->limit - this->current);
+
+        bufLimitSet(buffer, expectedBytes);
+        ssize_t rc = 0;
+
+        // Read until EOF or buffer is full
+        do
+        {
 //            do
 //            {
-//                rc = libssh2_sftp_read(this->sftpHandle, (char *)bufRemainsPtr(buffer), bufRemains(buffer));
+        rc = sftp_read(this->sftpHandle, (char *)bufRemainsPtr(buffer), bufRemains(buffer));
 //            }
 //            while (storageSftpWaitFd(this->storage, rc));
 //
-//            // Break on EOF or error
-//            if (rc <= 0)
-//                break;
-//
-//            // Account/shift for bytes read
-//            bufUsedInc(buffer, (size_t)rc);
-//        }
-//        while (!bufFull(buffer));
-//
-//        // Total bytes read into the buffer
-//        actualBytes = (ssize_t)bufUsed(buffer);
-//
-//        // Error occurred during read
-//        if (rc < 0)
-//        {
-//            if (rc == LIBSSH2_ERROR_SFTP_PROTOCOL)
-//            {
-//                uint64_t sftpErr = 0;
-//
-//                // libssh2 sftp lseek seems to return LIBSSH2_FX_BAD_MESSAGE on a seek too far
-//                if ((sftpErr = libssh2_sftp_last_error(this->sftpSession)) == LIBSSH2_FX_BAD_MESSAGE && this->interface.offset > 0)
-//                    THROW_FMT(FileOpenError, STORAGE_ERROR_READ_SEEK, this->interface.offset, strZ(this->interface.name));
-//                else
-//                    THROW_FMT(FileReadError, "unable to read '%s': sftp errno [%" PRIu64 "]", strZ(this->interface.name), sftpErr);
-//            }
-//            else if (rc == LIBSSH2_ERROR_EAGAIN)
-//                THROW_FMT(FileReadError, "timeout reading '%s'", strZ(this->interface.name));
-//            else
-//            {
-//                storageSftpEvalLibSsh2Error(
-//                    (int)rc, libssh2_sftp_last_error(this->sftpSession), &FileReadError,
-//                    strNewFmt("unable to read '%s'", strZ(this->interface.name)), NULL);
-//            }
-//        }
-//
-//        // Update amount of buffer used
-//        this->current += (uint64_t)actualBytes;
-//
-//        // If less data than expected was read or the limit has been reached then EOF. The file may not actually be EOF but we are
-//        // not concerned with files that are growing. Just read up to the point where the file is being extended.
-//        if ((size_t)actualBytes != expectedBytes || this->current == this->limit)
-//            this->eof = true;
-//    }
+            // Break on EOF or error
+            if (rc <= 0)
+                break;
+
+            // Account/shift for bytes read
+            bufUsedInc(buffer, (size_t)rc);
+        }
+        while (!bufFull(buffer));
+
+        // Total bytes read into the buffer
+        actualBytes = (ssize_t)bufUsed(buffer);
+
+        // Error occurred during read
+        if (rc < 0)
+        {
+            int sftpErr = sftp_get_error(this->sftpSession);
+
+            if (sftpErr == SSH_FX_BAD_MESSAGE && this->interface.offset > 0)
+                THROW_FMT(FileOpenError, STORAGE_ERROR_READ_SEEK, this->interface.offset, strZ(this->interface.name));
+            else
+            {
+                THROW_FMT(
+                    FileReadError,
+                    "unable to read '%s': %s [%d] sftp errno [%d]", strZ(this->interface.name), ssh_get_error(this->session),
+                    ssh_get_error_code(this->session), sftpErr);
+            }
+        }
+
+        // Update amount of buffer used
+        this->current += (uint64_t)actualBytes;
+
+//fprintf(stderr, "jrt this->current: %lu this->limit %lu\n", this->current, this->limit);
+//fprintf(stderr, "jrt actualBytes: %zd expectedBytesi %lu\n", actualBytes, expectedBytes);
+        // If less data than expected was read or the limit has been reached then EOF. The file may not actually be EOF but we are
+        // not concerned with files that are growing. Just read up to the point where the file is being extended.
+        if ((size_t)actualBytes != expectedBytes || this->current == this->limit)
+            this->eof = true;
+    }
+//fprintf(stderr, "jrt b this->eof: %d\n", this->eof);
 
     FUNCTION_LOG_RETURN(SIZE, (size_t)actualBytes);
 }
@@ -191,19 +192,19 @@ storageReadSftpClose(THIS_VOID)
 
     ASSERT(this != NULL);
 
-//    if (this->sftpHandle != NULL)
-//    {
-//        int rc;
-//
-//        // Close the file
-//        do
-//        {
-//            rc = libssh2_sftp_close(this->sftpHandle);
-//        }
-//        while (storageSftpWaitFd(this->storage, rc));
-//
-//        if (rc != 0)
-//        {
+    if (this->sftpHandle != NULL)
+    {
+        int rc;
+
+        // Close the file
+        rc = sftp_close(this->sftpHandle);
+
+        if (rc == SSH_ERROR)
+        {
+            THROW_FMT(
+                FileCloseError,
+                STORAGE_ERROR_READ_CLOSE ": libssh sftp error [%d]", strZ(this->interface.name), sftp_get_error(this->sftpSession));
+        }
 //            if (rc != LIBSSH2_ERROR_EAGAIN)
 //                THROW_FMT(
 //                    FileCloseError,
@@ -217,9 +218,9 @@ storageReadSftpClose(THIS_VOID)
 //                    strNewFmt("timeout closing file '%s'", strZ(this->interface.name)), NULL);
 //            }
 //        }
-//    }
-//
-//    this->sftpHandle = NULL;
+    }
+
+    this->sftpHandle = NULL;
 
     FUNCTION_LOG_RETURN_VOID();
 }
@@ -265,9 +266,9 @@ storageReadSftpNew(
         *this = (StorageReadSftp)
         {
             .storage = storage,
-            .session = session,
-            .sftpSession = sftpSession,
-            .sftpHandle = sftpHandle,
+            .session = *session,
+            .sftpSession = *sftpSession,
+            .sftpHandle = *sftpHandle,
 
             // Rather than enable/disable limit checking just use a big number when there is no limit. We can feel pretty confident
             // that no files will be > UINT64_MAX in size. This is a copy of the interface limit but it simplifies the code during

@@ -67,7 +67,6 @@ ioWriteOpen(IoWrite *const this)
 
     ASSERT(this != NULL);
     ASSERT(!this->opened && !this->closed);
-
     if (this->interface.open != NULL)
         this->interface.open(this->driver);
 

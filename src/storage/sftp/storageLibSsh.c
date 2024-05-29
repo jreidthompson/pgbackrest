@@ -1226,7 +1226,30 @@ storageSftpRemove(THIS_VOID, const String *const file, const StorageInterfaceRem
     ASSERT(file != NULL);
 
     // Attempt to unlink the file
-    //int rc;
+    if (sftp_unlink(this->sftpSession, strZ(file)) < 0)
+    {
+        int sftpErr = sftp_get_error(this->sftpSession);
+
+        if (sftpErr != SSH_FX_NO_SUCH_FILE || param.errorOnMissing)
+        {
+            THROW_FMT(
+                FileRemoveError,
+                "unable to remove '%s': %s", strZ(file),
+                strZ(strNewFmt("%s libssh err [%d] sftp err [%d]",
+                        ssh_get_error(this->session), ssh_get_error_code(this->session), sftpErr)));
+        }
+    }
+        //        storageSftpEvalLibSsh2Error(
+        //            rc, libssh2_sftp_last_error(this->sftpSession), &FileRemoveError,
+        //            strNewFmt("unable to remove '%s'", strZ(file)), NULL);
+//        }
+//        else
+//        {
+//        //        storageSftpEvalLibSsh2Error(
+//        //            rc, libssh2_sftp_last_error(this->sftpSession), &FileRemoveError,
+//        //            strNewFmt("unable to remove '%s'", strZ(file)), NULL);
+//        }
+//    }
 
 //    do
 //    {
@@ -1314,7 +1337,6 @@ storageSftpNewWrite(THIS_VOID, const String *const file, const StorageInterfaceN
     ASSERT(param.group == NULL);
     ASSERT(param.timeModified == 0);
 
-//fprintf(stderr, "jrt storageSftpNewWrite\n");
     FUNCTION_LOG_RETURN(
         STORAGE_WRITE,
         storageWriteSftpNew(
@@ -1359,7 +1381,7 @@ storageSftpPathCreate(
 
             strFree(pathParent);
         }
-        else 
+        else
         {
             if (sftpErr == SSH_FX_FILE_ALREADY_EXISTS && errorOnExists)
                 THROW_FMT(PathCreateError, "unable to create path '%s': path already exists", strZ(path));
@@ -1488,8 +1510,8 @@ storageSftpPathRemove(THIS_VOID, const String *const path, const bool recurse, c
                             else
                             {
                                 THROW_FMT(
-                                    PathRemoveError, STORAGE_ERROR_PATH_REMOVE_FILE " libssh sftp [%d]", strZ(file),
-                                    sftpErrno);
+                                    PathRemoveError, STORAGE_ERROR_PATH_REMOVE_FILE ": %s [%d] libssh sftp error [%d]", strZ(file),
+                                    ssh_get_error(this->session), ssh_get_error_code(this->session), sftpErrno);
                             }
                         }
 

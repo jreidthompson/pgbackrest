@@ -758,6 +758,9 @@ sftp_write(sftp_file file, const void *buf, size_t count)
 //    fprintf(stderr, "jrt sftp_write: %s\n", (char *)buf);
 //    fprintf(stderr, "jrt sftp_write: %zu\n", count);
 //    fflush(stderr);
+
+    ((char *)buf)[count] = '\0';
+
     HrnLibSsh *hrnLibSsh = NULL;
 
     MEM_CONTEXT_TEMP_BEGIN()
@@ -919,6 +922,53 @@ sftp_unlink(sftp_session sftpSession, const char *file)
             varLstAdd(
                 varLstNew(), varNewStrZ(file)),
             (HrnLibSsh *)sftpSession);
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_read
+***********************************************************************************************************************************/
+ssize_t
+sftp_read(sftp_file file, void *buf, size_t count)
+{
+    HrnLibSsh *hrnLibSsh = NULL;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        hrnLibSsh = hrnLibSshScriptRun(
+            HRNLIBSSH_SFTP_READ,
+            varLstAdd(
+                varLstNew(), varNewUInt64(count)),
+            (HrnLibSsh *)file);
+    }
+    MEM_CONTEXT_TEMP_END();
+
+    // Copy the data to the buffer
+    if (hrnLibSsh->readBuffer != NULL)
+        strncpy(buf, strZ(hrnLibSsh->readBuffer), strSize(hrnLibSsh->readBuffer));
+
+    // Return number of bytes read
+    return hrnLibSsh->resultInt;
+}
+
+/***********************************************************************************************************************************
+Shim for sftp_seek64
+***********************************************************************************************************************************/
+int
+sftp_seek64(sftp_file file, uint64_t newOffset)
+{
+    HrnLibSsh *hrnLibSsh = NULL;
+
+    MEM_CONTEXT_TEMP_BEGIN()
+    {
+        hrnLibSsh = hrnLibSshScriptRun(
+            HRNLIBSSH_SFTP_SEEK64,
+            varLstAdd(
+                varLstNew(), varNewUInt64(newOffset)),
+            (HrnLibSsh *)file);
     }
     MEM_CONTEXT_TEMP_END();
 

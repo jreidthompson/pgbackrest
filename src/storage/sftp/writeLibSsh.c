@@ -46,8 +46,6 @@ storageWriteSftpOpen(THIS_VOID)
         FUNCTION_LOG_PARAM(STORAGE_WRITE_SFTP, this);
     FUNCTION_LOG_END();
 
-//fprintf(stderr, "jrt storageWriteSftpOpen\n");
-        fflush(stderr);;
     ASSERT(this != NULL);
     ASSERT(this->sftpSession != NULL);
 
@@ -60,8 +58,6 @@ storageWriteSftpOpen(THIS_VOID)
     // Attempt to create the path if it is missing
     if (this->sftpHandle == NULL && sftp_get_error(this->sftpSession) == SSH_FX_NO_SUCH_FILE)
     {
-        //fprintf(stderr, "jrt storageWriteSftpOpen: create path\n");
-        //fflush(stderr);;
         // Create the path
         storageInterfacePathCreateP(this->storage, this->path, false, false, this->interface.modePath);
 
@@ -71,11 +67,22 @@ storageWriteSftpOpen(THIS_VOID)
 
     if (this->sftpHandle == NULL)
     {
-        if (sftp_get_error(this->sftpSession) == SSH_FX_NO_SUCH_FILE)
-            THROW_FMT(FileMissingError, STORAGE_ERROR_WRITE_MISSING, strZ(this->interface.name));
+        const int sftpErr = sftp_get_error(this->sftpSession);
+
+        if (sftpErr == SSH_FX_NO_SUCH_FILE)
+        {
+            THROW_FMT(
+                FileMissingError,
+                STORAGE_ERROR_WRITE_MISSING ": %s [%d] libssh sftp error [%d]", strZ(this->interface.name),
+                ssh_get_error(this->session), ssh_get_error_code(this->session), sftpErr);
+        }
         else
-            THROW_FMT(FileOpenError, STORAGE_ERROR_WRITE_OPEN, strZ(this->nameTmp));
-//            storageSftpEvalLibSsh2Error(rc, sftpErr, &FileOpenError, strNewFmt(STORAGE_ERROR_WRITE_OPEN, strZ(this->interface.name)), NULL);
+        {
+            THROW_FMT(
+                FileOpenError,
+                STORAGE_ERROR_WRITE_OPEN ": %s [%d] libssh sftp error [%d]", strZ(this->nameTmp), ssh_get_error(this->session),
+                ssh_get_error_code(this->session), sftpErr);
+        }
     }
 
 //    // Open the file
@@ -151,12 +158,15 @@ storageWriteSftp(THIS_VOID, const Buffer *const buffer)
     ASSERT(this != NULL);
     ASSERT(buffer != NULL);
     ASSERT(this->sftpHandle != NULL);
-//fprintf(stderr, "jrt storageWriteSftp\n");
-//fflush(stderr);
 
     // Write the data
     if (sftp_write(this->sftpHandle, bufPtrConst(buffer), bufUsed(buffer)) < 0)
-        THROW_FMT(FileWriteError, "unable to write '%s'", strZ(this->nameTmp));
+    {
+        THROW_FMT(
+            FileWriteError,
+            "unable to write '%s': %s libssh error [%d]", strZ(this->nameTmp), ssh_get_error(this->session),
+            sftp_get_error(this->sftpSession));
+    }
 
 //    ssize_t rc;
 //    size_t remains = bufUsed(buffer);                               // Amount left to write
@@ -210,24 +220,12 @@ storageWriteSftpUnlinkExisting(THIS_VOID)
 
     ASSERT(this != NULL);
 
-//    int rc;
-//
-//    do
-//    {
-//        rc = libssh2_sftp_unlink_ex(this->sftpSession, strZ(this->interface.name), (unsigned int)strSize(this->interface.name));
-//    }
-//    while (storageSftpWaitFd(this->storage, rc));
-//
-//    if (rc != 0)
-//    {
-//        if (rc == LIBSSH2_ERROR_EAGAIN)
-//            THROW_FMT(FileWriteError, "timeout unlinking '%s'", strZ(this->interface.name));
-//
-//        else
-//            storageSftpEvalLibSsh2Error(
-//                rc, libssh2_sftp_last_error(this->sftpSession), &FileRemoveError,
-//                strNewFmt("unable to remove existing '%s'", strZ(this->interface.name)), NULL);
-//    }
+    if (sftp_unlink(this->sftpSession, strZ(this->interface.name)) < 0)
+    {
+        THROW_FMT(
+            FileRemoveError, "unable to remove existing '%s': %s libssh sftp error [%d]", strZ(this->interface.name),
+            ssh_get_error(this->session), sftp_get_error(this->sftpSession));
+    }
 
     FUNCTION_LOG_RETURN_VOID();
 }
@@ -246,26 +244,12 @@ storageWriteSftpRename(THIS_VOID)
 
     ASSERT(this != NULL);
 
-//    int rc;
-//
-//    do
-//    {
-//        rc = libssh2_sftp_rename_ex(
-//            this->sftpSession, strZ(this->nameTmp), (unsigned int)strSize(this->nameTmp), strZ(this->interface.name),
-//            (unsigned int)strSize(this->interface.name),
-//            LIBSSH2_SFTP_RENAME_OVERWRITE | LIBSSH2_SFTP_RENAME_ATOMIC | LIBSSH2_SFTP_RENAME_NATIVE);
-//    }
-//    while (storageSftpWaitFd(this->storage, rc));
-//
-//    if (rc != 0)
-//    {
-//        if (rc == LIBSSH2_ERROR_EAGAIN)
-//            THROW_FMT(FileWriteError, "timeout moving '%s' to '%s'", strZ(this->nameTmp), strZ(this->interface.name));
-//        else
-//            storageSftpEvalLibSsh2Error(
-//                rc, libssh2_sftp_last_error(this->sftpSession), &FileRemoveError,
-//                strNewFmt("unable to move '%s' to '%s'", strZ(this->nameTmp), strZ(this->interface.name)), NULL);
-//    }
+    if (sftp_rename(this->sftpSession, strZ(this->nameTmp), strZ(this->interface.name)) < 0)
+    {
+        THROW_FMT(
+            FileRemoveError, "unable to move '%s' to '%s': %s libssh sftp error [%d]", strZ(this->nameTmp),
+            strZ(this->interface.name), ssh_get_error(this->session), sftp_get_error(this->sftpSession));
+    }
 
     FUNCTION_LOG_RETURN_VOID();
 }
@@ -283,26 +267,29 @@ storageWriteSftpClose(THIS_VOID)
     FUNCTION_LOG_END();
 
     ASSERT(this != NULL);
-//fprintf(stderr, "jrt storageWriteSftpClose\n");
-//fflush(stderr);
-
 
     // Close if the file has not already been closed
     if (this->sftpHandle != NULL)
     {
-//        int rc;
-
-//fprintf(stderr, "jrt storageWriteSftpClose: syncFile %d\n", this->interface.syncFile);
         // Sync the file
         if (this->interface.syncFile)
             if (sftp_fsync(this->sftpHandle) < 0)
-                THROW_FMT(FileSyncError, STORAGE_ERROR_WRITE_SYNC, strZ(this->nameTmp));
+            {
+                THROW_FMT(
+                    FileSyncError,
+                    STORAGE_ERROR_WRITE_SYNC ": %s libssh sftp error [%d]", strZ(this->nameTmp), ssh_get_error(this->session),
+                    sftp_get_error(this->sftpSession));
+            }
 
         // Close the file
         if (sftp_close(this->sftpHandle) < 0)
-            THROW_FMT(FileCloseError, STORAGE_ERROR_WRITE_CLOSE, strZ(this->nameTmp));
+        {
+            THROW_FMT(
+                FileCloseError,
+                STORAGE_ERROR_WRITE_CLOSE ": %s libssh sftp error [%d]", strZ(this->nameTmp), ssh_get_error(this->session),
+                sftp_get_error(this->sftpSession));
+        }
 
-//fprintf(stderr, "jrt storageWriteSftpClose: atomic %d\n", this->interface.atomic);
         // Rename from temp file
         if (this->interface.atomic)
         {
@@ -319,7 +306,12 @@ storageWriteSftpClose(THIS_VOID)
                     storageWriteSftpRename(this);
                 }
                 else
-                    THROW_FMT(FileCloseError, "unable to move '%s' to '%s'", strZ(this->nameTmp), strZ(this->interface.name));
+                {
+                    THROW_FMT(
+                        FileCloseError,
+                        "unable to move '%s' to '%s': %s [%d] libssh sftp error [%d]", strZ(this->nameTmp),
+                        strZ(this->interface.name), ssh_get_error(this->session), ssh_get_error_code(this->session), sftpErr);
+                }
             }
         }
     }
