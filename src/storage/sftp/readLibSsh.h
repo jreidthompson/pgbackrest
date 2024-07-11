@@ -5,6 +5,7 @@ SFTP Storage Read
 #ifndef STORAGE_SFTP_LIBSSHREAD_H
 #define STORAGE_SFTP_LIBSSHREAD_H
 
+#include <fcntl.h>
 #include "storage/read.h"
 #include "storage/sftp/storage.intern.h"
 

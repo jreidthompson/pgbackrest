@@ -83,14 +83,7 @@ Function constants
 #define HRNLIBSSH_SFTP_UNLINK                                       "sftp_unlink"
 #define HRNLIBSSH_SFTP_READ                                         "sftp_read"
 #define HRNLIBSSH_SFTP_SEEK64                                       "sftp_seek64"
-//#define HRNLIBSSH_SESSION_LAST_ERROR                                "ssh_session_last_error"
-//#define HRNLIBSSH_SFTP_INIT                                         "ssh_sftp_init"
-//#define HRNLIBSSH_SFTP_LAST_ERROR                                   "ssh_sftp_last_error"
-//#define HRNLIBSSH_SFTP_SHUTDOWN                                     "ssh_sftp_shutdown"
-//#define HRNLIBSSH_SFTP_STAT_EX                                      "ssh_sftp_stat_ex"
-//#define HRNLIBSSH_SFTP_SYMLINK_EX                                   "ssh_sftp_symlink_ex"
-//#define HRNLIBSSH_SFTP_UNLINK_EX                                    "ssh_sftp_unlink_ex"
-//#define HRNLIBSSH_USERAUTH_PUBLICKEY_FROMFILE_EX                    "ssh_userauth_publickey_fromfile_ex"
+#define HRNLIBSSH_SESSION_SET_DISCONNECT_MESSAGE                    "ssh_session_set_disconnect_message"
 
 /***********************************************************************************************************************************
 //Macros for defining groups of functions that implement commands
@@ -116,13 +109,9 @@ Function constants
     {.function = HRNLIBSSH_SFTP_NEW, .resultNull = false},                                                                         \
     {.function = HRNLIBSSH_SFTP_INIT, .resultInt = SSH_OK}
 
-
-/*    {.function = HRNLIBSSH_SFTP_FREE},                                                                                             \
-//    {.function = HRNLIBSSH_DISCONNECT},                                                                                            \
-//    {.function = HRNLIBSSH_FREE},                                                                                                  \
-*/
 // Set of functions mimicking libssh shutdown and disconnect
 #define HRNLIBSSH_MACRO_SHUTDOWN()                                                                                                 \
+    {.function = HRNLIBSSH_SESSION_SET_DISCONNECT_MESSAGE, .param = "[\"pgBackRest instance shutdown\"]", .resultInt = SSH_OK},    \
     {.function = HRNLIBSSH_FINALIZE, .resultInt = 0},                                                                              \
     {.function = NULL}                                                                                                             \
 

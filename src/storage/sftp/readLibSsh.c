@@ -52,32 +52,29 @@ storageReadSftpOpen(THIS_VOID)
     ASSERT(this != NULL);
 
     // Open the file
-    this->sftpHandle = sftp_open(this->sftpSession, strZ(this->interface.name), SSH_FXF_READ, 0);
+    this->sftpHandle = sftp_open(this->sftpSession, strZ(this->interface.name), O_RDONLY, 0);
 
     // Handle errors
     if (this->sftpHandle == NULL)
     {
         const int rc = sftp_get_error(this->sftpSession);
 
-        if (rc != 0)
+        if (rc == SSH_FX_NO_SUCH_FILE)
         {
-            if (rc == SSH_FX_NO_SUCH_FILE)
-            {
-                if (!this->interface.ignoreMissing)
-                {
-                   THROW_FMT(
-                        FileMissingError,
-                        STORAGE_ERROR_READ_MISSING ": %s [%d] libssh sftp error [%d]", strZ(this->interface.name),
-                        ssh_get_error(this->session), ssh_get_error_code(this->session), rc);
-                }
-            }
-            else
+            if (!this->interface.ignoreMissing)
             {
                 THROW_FMT(
-                    FileOpenError,
-                    STORAGE_ERROR_READ_OPEN ": %s [%d] libssh sftp error [%d]", strZ(this->interface.name),
+                    FileMissingError,
+                    STORAGE_ERROR_READ_MISSING ": %s [%d] libssh sftp error [%d]", strZ(this->interface.name),
                     ssh_get_error(this->session), ssh_get_error_code(this->session), rc);
             }
+        }
+        else
+        {
+            THROW_FMT(
+                FileOpenError,
+                STORAGE_ERROR_READ_OPEN ": %s [%d] libssh sftp error [%d]", strZ(this->interface.name),
+                ssh_get_error(this->session), ssh_get_error_code(this->session), rc);
         }
     }
     // Else success
@@ -111,15 +108,12 @@ storageReadSftp(THIS_VOID, Buffer *const buffer, const bool block)
 
     ssize_t actualBytes = 0;
 
-//    fprintf(stderr, "jrt a this->eof: %d\n", this->eof);
     // Read if EOF has not been reached
     if (!this->eof)
     {
-//        fprintf(stderr, "jrt this->current: %lu\n", this->current);
         // Determine expected bytes to read. If remaining size in the buffer would exceed the limit then reduce the expected read.
         size_t expectedBytes = bufRemains(buffer);
 
-//    fprintf(stderr, "jrt read expected bytes %lu\n", expectedBytes);
         if (this->current + expectedBytes > this->limit)
             expectedBytes = (size_t)(this->limit - this->current);
 
@@ -129,12 +123,8 @@ storageReadSftp(THIS_VOID, Buffer *const buffer, const bool block)
         // Read until EOF or buffer is full
         do
         {
-//            do
-//            {
-        rc = sftp_read(this->sftpHandle, (char *)bufRemainsPtr(buffer), bufRemains(buffer));
-//            }
-//            while (storageSftpWaitFd(this->storage, rc));
-//
+            rc = sftp_read(this->sftpHandle, (char *)bufRemainsPtr(buffer), bufRemains(buffer));
+
             // Break on EOF or error
             if (rc <= 0)
                 break;
@@ -166,14 +156,11 @@ storageReadSftp(THIS_VOID, Buffer *const buffer, const bool block)
         // Update amount of buffer used
         this->current += (uint64_t)actualBytes;
 
-//fprintf(stderr, "jrt this->current: %lu this->limit %lu\n", this->current, this->limit);
-//fprintf(stderr, "jrt actualBytes: %zd expectedBytesi %lu\n", actualBytes, expectedBytes);
         // If less data than expected was read or the limit has been reached then EOF. The file may not actually be EOF but we are
         // not concerned with files that are growing. Just read up to the point where the file is being extended.
         if ((size_t)actualBytes != expectedBytes || this->current == this->limit)
             this->eof = true;
     }
-//fprintf(stderr, "jrt b this->eof: %d\n", this->eof);
 
     FUNCTION_LOG_RETURN(SIZE, (size_t)actualBytes);
 }
